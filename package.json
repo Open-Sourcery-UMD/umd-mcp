@@ -1,7 +1,8 @@
 {
   "name": "umd-mcp",
-  "version": "0.0.1-beta",
-  "description": "MCP server exposing University of Maryland data: courses, schedules, grades, dining, transit, athletics, events and more",
+  "mcpName": "io.github.avivkeller/umd-mcp",
+  "version": "0.0.1",
+  "description": "MCP server exposing University of Maryland data",
   "type": "module",
   "license": "MIT",
   "author": "Aviv Keller <me@aviv.sh>",
