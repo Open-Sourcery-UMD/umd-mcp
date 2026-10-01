@@ -1,7 +1,7 @@
 {
   "name": "umd-mcp",
   "mcpName": "io.github.avivkeller/umd-mcp",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "MCP server exposing University of Maryland data",
   "type": "module",
   "license": "MIT",
