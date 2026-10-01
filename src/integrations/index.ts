@@ -4,6 +4,7 @@ import { Calendar } from './calendar/index.js';
 import { Dining } from './dining/index.js';
 import { Directory } from './directory/index.js';
 import { Elms } from './elms/index.js';
+import { Go } from './go/index.js';
 import { Nutrition } from './nutrition/index.js';
 import { PlanetTerp } from './planetterp/index.js';
 import { RecWell } from './recwell/index.js';
@@ -27,6 +28,7 @@ export function createIntegrations(): Integration[] {
     new Dining(),
     new Directory(),
     new Elms(),
+    new Go(),
     new RecWell(),
     new Senate(),
     new TerpLink(),

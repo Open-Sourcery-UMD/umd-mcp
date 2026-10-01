@@ -184,6 +184,29 @@ Tool names are `<integration>_<method>`, except the sign-in tools. Integrations 
 | `elms_list_conversations`  | The signed-in student's ELMS (Canvas) Inbox: conversations with their subject, participants and last message.                                                                                                      |
 | `elms_get_conversation`    | One ELMS (Canvas) Inbox conversation with every message in it.                                                                                                                                                     |
 
+### go (login)
+
+| Tool                          | Description                                                                                                                                                                       |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `go_list_links`               | The signed-in user's go.umd.edu short links across every collection they are in, newest first by default.                                                                         |
+| `go_get_link`                 | One of the signed-in user's go.umd.edu links with its stats page: destination, collection, note, click counts by hour, day and month, the busiest day and where clicks came from. |
+| `go_create_link`              | Create a go.umd.edu short link to a URL, with a chosen keyword or a generated one, in the personal space or one of the user's collections.                                        |
+| `go_update_link`              | Change where one of the signed-in user's go.umd.edu links points, rename its keyword, move it to another collection or edit its note.                                             |
+| `go_delete_link`              | Delete one of the signed-in user's go.umd.edu links.                                                                                                                              |
+| `go_get_qr_code`              | A PNG QR code that opens one of the signed-in user's go.umd.edu links.                                                                                                            |
+| `go_list_collections`         | The collections the signed-in user is in on go.umd.edu, with how many links and members each has.                                                                                 |
+| `go_create_collection`        | Create a go.umd.edu collection with the signed-in user as its first member.                                                                                                       |
+| `go_update_collection`        | Rename one of the signed-in user's go.umd.edu collections or change its description.                                                                                              |
+| `go_delete_collection`        | Delete one of the signed-in user's go.umd.edu collections (refused while it still has links).                                                                                     |
+| `go_list_collection_members`  | The people who can manage the links in one of the signed-in user's go.umd.edu collections.                                                                                        |
+| `go_add_collection_member`    | Give a UMD person access to one of the signed-in user's go.umd.edu collections, by Directory ID.                                                                                  |
+| `go_remove_collection_member` | Take a person's access to one of the signed-in user's go.umd.edu collections away.                                                                                                |
+| `go_lookup_users`             | Find UMD people by name or Directory ID in go.umd.edu's own people search. No login needed.                                                                                       |
+| `go_list_transfer_requests`   | Pending offers to hand go.umd.edu links between people, to and from the signed-in user.                                                                                           |
+| `go_transfer_links`           | Offer some of the signed-in user's go.umd.edu links to another UMD person, who owns them once they accept.                                                                        |
+| `go_accept_transfer_request`  | Accept links another person offered the signed-in user on go.umd.edu.                                                                                                             |
+| `go_reject_transfer_request`  | Turn down links another person offered the signed-in user, or take back an offer the user made.                                                                                   |
+
 ### recwell
 
 | Tool                                 | Description                                                                                                                                                    |
@@ -317,6 +340,9 @@ export class StudentPortal extends Integration {
     signedIn: (url: URL) => url.hash.startsWith('#/main'),
     // Optional: fields to POST to loginUrl for apps whose sign-in is a button, not a redirect.
     // loginForm: { login: 'Log in' },
+    // Optional: the app's own sign-in page, for apps that bounce an expired session there
+    // (same origin, HTTP 200) instead of answering 401 or redirecting to the IdP.
+    // signInPage: (url: URL) => url.pathname === '/shortener/signin',
   };
 }
 ```
