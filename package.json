@@ -1,6 +1,6 @@
 {
   "name": "umd-mcp",
-  "version": "1.0.0",
+  "version": "0.0.1-beta",
   "description": "MCP server exposing University of Maryland data: courses, schedules, grades, dining, transit, athletics, events and more",
   "type": "module",
   "license": "MIT",
