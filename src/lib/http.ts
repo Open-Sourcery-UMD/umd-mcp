@@ -2,6 +2,8 @@ export class HttpError extends Error {
   constructor(
     public readonly status: number,
     public readonly url: string,
+    /** The response body, for callers that read validation messages out of a 4xx. */
+    public readonly body = '',
     message?: string,
   ) {
     super(message ?? `Request to ${url} failed with status ${status}`);
@@ -38,7 +40,7 @@ export async function request(
   const url = buildUrl(baseUrl, path, query);
   const res = await fetcher(url, init);
   if (!res.ok) {
-    throw new HttpError(res.status, url.toString());
+    throw new HttpError(res.status, url.toString(), await res.text());
   }
   return res;
 }

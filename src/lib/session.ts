@@ -28,6 +28,12 @@ export type ServiceSpec = {
    * usually right. Override when the app's own sign-in pages share its origin.
    */
   signedIn?: (url: URL) => boolean;
+  /**
+   * Returns true for a URL the app bounces a request to once it no longer accepts the
+   * session, for apps whose sign-in page is on their own origin (so the redirect is not off
+   * origin) and answers HTTP 200. Such a response marks the session expired.
+   */
+  signInPage?: (url: URL) => boolean;
 };
 
 /** Whether `url` counts as being inside the app for `spec`. */
@@ -41,8 +47,9 @@ export function isSignedInUrl(spec: ServiceSpec, url: URL): boolean {
  * along the way (session ids rotate).
  *
  * The session marks itself expired, and throws `AuthRequiredError`, when the app answers 401
- * or redirects a request off its origin, which is what every UMD app does to bounce an
- * anonymous client to the IdP.
+ * or redirects a request off its origin, which is what most UMD apps do to bounce an
+ * anonymous client to the IdP, or to the page `spec.signInPage` names for apps that bounce
+ * to their own sign-in page instead.
  */
 export class Session {
   readonly jar = new CookieJar();
@@ -92,11 +99,13 @@ export class Session {
     }
     const requested = new URL(input);
     const res = await this.#fetch(requested, init);
-    if (res.status === 401 || new URL(res.url).origin !== requested.origin) {
+    const landed = new URL(res.url);
+    const bounced = landed.origin !== requested.origin || (this.spec.signInPage?.(landed) ?? false);
+    if (res.status === 401 || bounced) {
       this.#expired = true;
       throw new AuthRequiredError(
         `${this.spec.name} no longer accepts the session (${
-          res.status === 401 ? 'HTTP 401' : `redirected to ${new URL(res.url).origin}`
+          res.status === 401 ? 'HTTP 401' : `redirected to ${landed.origin}${landed.pathname}`
         }). Call the \`login\` tool to sign in again.`,
       );
     }
