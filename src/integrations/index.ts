@@ -7,6 +7,7 @@ import { Elms } from './elms/index.js';
 import { Nutrition } from './nutrition/index.js';
 import { PlanetTerp } from './planetterp/index.js';
 import { RecWell } from './recwell/index.js';
+import { Senate } from './senate/index.js';
 import { Shibboleth } from './shibboleth/index.js';
 import { TerpLink } from './terplink/index.js';
 import { StudentPortal } from './testudo/portal/index.js';
@@ -27,6 +28,7 @@ export function createIntegrations(): Integration[] {
     new Directory(),
     new Elms(),
     new RecWell(),
+    new Senate(),
     new TerpLink(),
     new Transportation(),
   ];

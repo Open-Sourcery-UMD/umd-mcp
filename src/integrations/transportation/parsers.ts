@@ -1,8 +1,7 @@
 import * as cheerio from 'cheerio';
 import type { CheerioAPI } from 'cheerio';
-import { htmlToText } from '../../lib/html.js';
-import { links, type Selection, tables, text, textOrNull } from '../../lib/scrape.js';
-import type { Alerts, Page, PageKey, ServiceCalendar } from './schemas.js';
+import { links, type Selection, text, textOrNull } from '../../lib/scrape.js';
+import type { Alerts, ServiceCalendar } from './schemas.js';
 
 const SITE = 'https://transportation.umd.edu';
 
@@ -67,10 +66,4 @@ export function parseServiceCalendar(html: string): ServiceCalendar {
           }),
       })),
   };
-}
-
-/** Parses an informational page into its title, plain text and tables. */
-export function parsePage(html: string, key: PageKey, url: string): Page {
-  const { $, title, body } = loadPage(html);
-  return { key, title, url, text: htmlToText(body.html() ?? ''), tables: tables($, body) };
 }

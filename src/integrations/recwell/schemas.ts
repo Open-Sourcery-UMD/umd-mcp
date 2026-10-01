@@ -32,37 +32,6 @@ export const facilityKey = z
   .enum(Object.keys(FACILITY_PAGES) as FacilityKey[])
   .describe('Which facility page to read');
 
-/** Informational pages, keyed by topic. */
-export const INFO_PAGES = {
-  membership_services: 'membership-services',
-  member_benefits: 'membership-services/member-benefits',
-  rules_and_regulations: 'membership-services/rules-regulations',
-  court_reservations: 'facilities/court-reservations',
-  facility_rental: 'facilities/facility-rental',
-  inclement_weather: 'facilities/inclement-weather',
-  accessibility: 'facilities/accessibility',
-  aquatics: 'programs-activities/aquatics',
-  adventure_program: 'programs-activities/adventure-program',
-  esports: 'programs-activities/esports',
-  golf: 'programs-activities/golf',
-  community_and_youth_programs: 'programs-activities/community-youth-programs',
-  personal_training: 'programs-activities/fitness/personal-training',
-  fitness_centers: 'programs-activities/fitness/fitness-centers-weight-rooms',
-  body_composition_assessments: 'programs-activities/fitness/fitness-body-composition-assessments',
-  wellness: 'safety-wellness/wellness',
-  injury_prevention_and_care: 'safety-wellness/injury-prevention-and-care-ipc',
-  instructional_classes_and_certifications: 'safety-wellness/instructional-classes-certifications',
-  about: 'about-us/about-us',
-  contact: 'about-us/contact-us',
-  student_employment: 'about-us/student-employment',
-} as const;
-
-export type InfoPageKey = keyof typeof INFO_PAGES;
-
-export const infoPageKey = z
-  .enum(Object.keys(INFO_PAGES) as InfoPageKey[])
-  .describe('Which page to read');
-
 export const FACILITY_CATEGORIES = ['indoor', 'outdoor'] as const;
 
 export type FacilityCategory = (typeof FACILITY_CATEGORIES)[number];
