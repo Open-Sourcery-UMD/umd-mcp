@@ -1,48 +1,5 @@
 import { z } from 'zod';
-import { isoDate, linkSchema, tableSchema, weekday } from '../../common.js';
-
-/** Informational DOTS pages `transportation_get_page` may fetch, keyed by topic. */
-export const PAGES = {
-  nite_ride: '/shuttle-um/nite-ride',
-  paratransit: '/shuttle-um/paratransit',
-  charter: '/shuttle-um/charter',
-  break_transportation: '/shuttle-um/charter/break-transportation',
-  shuttle_faq: '/shuttle-um-faq',
-  ride_101: '/ride101',
-  new_rider_guide: '/new-rider-guide',
-  transit_app: '/transit-official-app-shuttle-um',
-  transit_app_faq: '/transit-app-faqs',
-  shuttle_connections: '/shuttle-connections',
-  route_reset: '/route-reset',
-  parking: '/parking',
-  visitor_parking: '/parking/visitors',
-  student_parking: '/parking/students',
-  student_parking_fees: '/parking/students/fees-and-permit-types',
-  faculty_staff_parking: '/parking/faculty-staff',
-  faculty_staff_parking_fees: '/parking/faculty-staff/fees-and-permit-types',
-  accessible_parking: '/parking/accessible-parking',
-  towing: '/parking/towing',
-  motorized_cycle_parking: '/parking/motorized-cycle',
-  motorist_assistance: '/parking/motorist-assistance',
-  event_parking: '/parking/events-planning-requests',
-  athletics_parking: '/parking/athletics-parking',
-  football_parking: '/parking/athletics-parking/football',
-  parking_maps: '/parking/maps',
-  ev_charging: '/sustainable-transportation/electric-vehicle-charging',
-  citations: '/citations-reviews',
-  micromobility: '/micromobility-rentals',
-  regional_transit: '/sustainable-transportation/local-regional-transit',
-  carpool: '/sustainable-transportation/carpool',
-  carshare: '/sustainable-transportation/carshare-zipcar',
-  smart_commute: '/sustainable-transportation/transitioning-smart-commute',
-  contact: '/about-us/contact',
-} as const;
-
-export type PageKey = keyof typeof PAGES;
-
-export const pageKey = z
-  .enum(Object.keys(PAGES) as PageKey[])
-  .describe(`Which page to read: ${Object.keys(PAGES).join(', ')}`);
+import { isoDate, linkSchema, weekday } from '../../common.js';
 
 export const routeId = z
   .string()
@@ -179,14 +136,6 @@ export const serviceCalendarSchema = z.object({
   periods: z.array(servicePeriodSchema).describe('Periods in the order the page lists them'),
 });
 
-export const pageSchema = z.object({
-  key: pageKey,
-  title: z.string().describe('Page title'),
-  url: z.string().describe('Page URL'),
-  text: z.string().describe('Main content as plain text, tables laid out as rows'),
-  tables: z.array(tableSchema).describe('Every table on the page, in page order'),
-});
-
 export type Feed = z.infer<typeof feedSchema>;
 export type Route = z.infer<typeof routeSchema>;
 export type Stop = z.infer<typeof stopSchema>;
@@ -195,4 +144,3 @@ export type RouteDetail = z.infer<typeof routeDetailSchema>;
 export type Schedule = z.infer<typeof scheduleSchema>;
 export type Alerts = z.infer<typeof alertsSchema>;
 export type ServiceCalendar = z.infer<typeof serviceCalendarSchema>;
-export type Page = z.infer<typeof pageSchema>;

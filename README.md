@@ -3,7 +3,7 @@
 An [MCP](https://modelcontextprotocol.io) server exposing University of Maryland data: courses
 and grades (PlanetTerp, the Schedule of Classes, the Testudo student portal, ELMS), dining
 menus and news, Shuttle-UM routes and timetables, athletics, the campus calendar, TerpLink
-organizations and events, RecWell facilities, and the campus directory.
+organizations and events, RecWell facilities, the University Senate, and the campus directory.
 
 ## Development
 
@@ -186,14 +186,27 @@ Tool names are `<integration>_<method>`, except the sign-in tools. Integrations 
 
 ### recwell
 
-| Tool                                 | Description                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `recwell_get_facility_alerts`        | Current RecWell facility alerts: holiday and reduced hours, closures and protocol changes, as headed sections with any hours tables.                                                                                                                                                                                                                                                                         |
-| `recwell_list_facilities`            | RecWell facilities with a one-paragraph description and link each, grouped as indoor or outdoor.                                                                                                                                                                                                                                                                                                             |
-| `recwell_get_facility`               | A RecWell facility's page: description, regular hours of operation per season (one tab per semester, as tables), access rules, rental and parking information.                                                                                                                                                                                                                                               |
-| `recwell_get_group_fitness_schedule` | The weekly RecWell group fitness class schedule: class, location, instructor, start and end time and registration link, optionally for one weekday.                                                                                                                                                                                                                                                          |
-| `recwell_list_club_sports`           | Every RecWell club sport with its website, contact email and donation page.                                                                                                                                                                                                                                                                                                                                  |
-| `recwell_get_page`                   | A RecWell information page as sections of text and tables: memberships and benefits, rules, court reservations, facility rental, inclement weather, accessibility, aquatics, the Adventure Program, esports, golf, youth programs, personal training, fitness centers, body composition assessments, wellness, injury care, instructional classes and certifications, about, contact and student employment. |
+| Tool                                 | Description                                                                                                                                                    |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `recwell_get_facility_alerts`        | Current RecWell facility alerts: holiday and reduced hours, closures and protocol changes, as headed sections with any hours tables.                           |
+| `recwell_list_facilities`            | RecWell facilities with a one-paragraph description and link each, grouped as indoor or outdoor.                                                               |
+| `recwell_get_facility`               | A RecWell facility's page: description, regular hours of operation per season (one tab per semester, as tables), access rules, rental and parking information. |
+| `recwell_get_group_fitness_schedule` | The weekly RecWell group fitness class schedule: class, location, instructor, start and end time and registration link, optionally for one weekday.            |
+| `recwell_list_club_sports`           | Every RecWell club sport with its website, contact email and donation page.                                                                                    |
+
+### senate
+
+| Tool                                     | Description                                                                                                                                                                                                    |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `senate_list_legislation`                | Bills before the University Senate (senate.umd.edu): the current academic year's legislation with where each bill stands and who is reviewing it, or the archive of past bills back to 2001.                   |
+| `senate_get_bill`                        | One University Senate bill by id or document number: the proposal, sponsor, policy link, related bills, and every stage of its history with dates, decisions and the PDFs filed at each stage.                 |
+| `senate_list_senators`                   | Current members of the University Senate with the seat, constituency, college and term end of each.                                                                                                            |
+| `senate_get_constituent`                 | How the University Senate files a member of the campus community, by UMD Directory ID: their college, department, title, population and constituency.                                                          |
+| `senate_list_committees`                 | The University Senate's standing and special committees, the University councils it seats, and past councils and task forces, each with a one-paragraph summary.                                               |
+| `senate_get_committee`                   | One University Senate committee, University council, or past council or task force by name: its page as text (charge, chair, contact), current members with seats and colleges, and the bills it is reviewing. |
+| `senate_list_past_committee_legislation` | Every bill each University Senate standing committee has reviewed, grouped by committee and academic year back to 2001.                                                                                        |
+| `senate_get_committee_meetings`          | A University Senate standing committee's meeting dates and times for an academic year, with the agendas posted for each.                                                                                       |
+| `senate_get_meetings`                    | The University Senate meeting schedule for an academic year with the agenda, materials, slides and minutes posted for each meeting, and the years the archive covers.                                          |
 
 ### terplink
 
@@ -211,16 +224,15 @@ Tool names are `<integration>_<method>`, except the sign-in tools. Integrations 
 
 ### transportation
 
-| Tool                                  | Description                                                                                                                                                                                                                                            |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `transportation_list_routes`          | Every Shuttle-UM bus route in the current timetable (regular routes such as 104 College Park Metro plus event routes), with whether each runs today, from the published GTFS feed.                                                                     |
-| `transportation_get_route`            | One Shuttle-UM route with its stops in order (for the most common trip pattern on the given day) and the route polyline, from the published GTFS feed.                                                                                                 |
-| `transportation_list_stops`           | Shuttle-UM bus stops from the published GTFS feed, filtered by a name fragment or by distance from a point.                                                                                                                                            |
-| `transportation_get_stop`             | One Shuttle-UM bus stop with its location and every route that serves it, from the published GTFS feed.                                                                                                                                                |
-| `transportation_get_schedule`         | Scheduled departures of a Shuttle-UM route on a date, optionally at one stop, from the published GTFS feed.                                                                                                                                            |
-| `transportation_get_service_alerts`   | Current Shuttle-UM system updates and alerts (detours, schedule changes) and the modified-service notices linked from the DOTS schedules page.                                                                                                         |
-| `transportation_get_service_calendar` | The Shuttle-UM service calendar for the academic year: for each break, exam week and intersemester period, the dates and whether service is regular or modified, with the notice page for the detail.                                                  |
-| `transportation_get_page`             | The text and tables of one informational page on the UMD Department of Transportation Services site: NITE Ride, paratransit, charter and break shuttles, parking rules, permits and fees, citations, micromobility, regional transit, contact details. |
+| Tool                                  | Description                                                                                                                                                                                           |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `transportation_list_routes`          | Every Shuttle-UM bus route in the current timetable (regular routes such as 104 College Park Metro plus event routes), with whether each runs today, from the published GTFS feed.                    |
+| `transportation_get_route`            | One Shuttle-UM route with its stops in order (for the most common trip pattern on the given day) and the route polyline, from the published GTFS feed.                                                |
+| `transportation_list_stops`           | Shuttle-UM bus stops from the published GTFS feed, filtered by a name fragment or by distance from a point.                                                                                           |
+| `transportation_get_stop`             | One Shuttle-UM bus stop with its location and every route that serves it, from the published GTFS feed.                                                                                               |
+| `transportation_get_schedule`         | Scheduled departures of a Shuttle-UM route on a date, optionally at one stop, from the published GTFS feed.                                                                                           |
+| `transportation_get_service_alerts`   | Current Shuttle-UM system updates and alerts (detours, schedule changes) and the modified-service notices linked from the DOTS schedules page.                                                        |
+| `transportation_get_service_calendar` | The Shuttle-UM service calendar for the academic year: for each break, exam week and intersemester period, the dates and whether service is regular or modified, with the notice page for the detail. |
 
 ## Adding an integration
 

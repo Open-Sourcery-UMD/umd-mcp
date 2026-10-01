@@ -13,17 +13,12 @@ import {
   STOP_FIELDS,
   toStop,
 } from './gtfs.js';
-import { parseAlerts, parsePage, parseServiceCalendar } from './parsers.js';
+import { parseAlerts, parseServiceCalendar } from './parsers.js';
 import {
   type Alerts,
   alertsSchema,
   type Feed,
   feedSchema,
-  type Page,
-  type PageKey,
-  pageKey,
-  PAGES,
-  pageSchema,
   type Route,
   type RouteDetail,
   routeDetailSchema,
@@ -252,17 +247,5 @@ export class Transportation extends Integration {
   })
   async get_service_calendar(): Promise<ServiceCalendar> {
     return parseServiceCalendar(await this.getText('shuttle-um/service-calendar'));
-  }
-
-  @tool({
-    title: 'Read a DOTS information page',
-    description:
-      'The text and tables of one informational page on the UMD Department of Transportation Services site: NITE Ride, paratransit, charter and break shuttles, parking rules, permits and fees, citations, micromobility, regional transit, contact details. No login needed.',
-    input: { key: pageKey },
-    output: pageSchema.shape,
-  })
-  async get_page({ key }: { key: PageKey }): Promise<Page> {
-    const path = PAGES[key];
-    return parsePage(await this.getText(path), key, `${this.baseUrl}${path}`);
   }
 }

@@ -12,9 +12,6 @@ import {
   facilitySummarySchema,
   type FitnessClass,
   fitnessClassSchema,
-  INFO_PAGES,
-  type InfoPageKey,
-  infoPageKey,
   type Page,
   pageSchema,
   SITE,
@@ -99,16 +96,5 @@ export class RecWell extends Integration {
     return {
       clubs: parseClubSports(await this.getText('programs-activities/club-sports/club-directory')),
     };
-  }
-
-  @tool({
-    title: 'Get an information page',
-    description:
-      'A RecWell information page as sections of text and tables: memberships and benefits, rules, court reservations, facility rental, inclement weather, accessibility, aquatics, the Adventure Program, esports, golf, youth programs, personal training, fitness centers, body composition assessments, wellness, injury care, instructional classes and certifications, about, contact and student employment. No login needed.',
-    input: { page: infoPageKey },
-    output: pageSchema.shape,
-  })
-  async get_page({ page }: { page: InfoPageKey }): Promise<Page> {
-    return this.page(INFO_PAGES[page]);
   }
 }
