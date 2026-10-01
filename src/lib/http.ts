@@ -45,11 +45,7 @@ export async function request(
   return res;
 }
 
-/**
- * Small JSON fetch helper. Builds a URL from base + path + query, throws `HttpError`
- * on non-2xx responses, and returns the parsed JSON body. Pass a `Session`'s `fetch` as
- * `fetcher` to make the request with that session's cookies.
- */
+/** Like `request`, but asks for JSON and returns the parsed body. */
 export async function getJson<T>(
   baseUrl: string,
   path: string,
@@ -66,9 +62,7 @@ export async function getJson<T>(
   return (await res.json()) as T;
 }
 
-/**
- * Like `getJson`, but returns the raw body as text. Used for upstreams that only serve HTML.
- */
+/** Like `request`, but asks for HTML or text and returns the body as a string. */
 export async function getText(
   baseUrl: string,
   path: string,

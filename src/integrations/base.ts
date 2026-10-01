@@ -22,33 +22,22 @@ export type InputOf<S extends Shape> = z.infer<z.ZodObject<S>>;
 /** Return value for a given output shape. */
 export type OutputOf<S extends Shape> = z.infer<z.ZodObject<S>>;
 
-/**
- * Metadata for one tool, passed to `@tool()`. Everything here is advertised to the client, so
- * the model can see what the tool does, what it takes, and what it returns before calling it.
- */
+/** Metadata for one tool, passed to `@tool()`. Everything here is advertised to the client. */
 export type ToolSpec<
   Input extends InputShape = InputShape,
   Output extends OutputShape = OutputShape,
 > = {
-  /**
-   * MCP tool name. Defaults to the integration's name joined to the method's name, e.g.
-   * `planetterp_get_course`, so tools from different integrations never collide. Set it to
-   * use a bare name such as `login`.
-   */
+  /** MCP tool name. Defaults to `<integration>_<method>`, e.g. `planetterp_get_course`. */
   name?: string;
   /** Human-readable title shown in client UIs. */
   title?: string;
   /** Description the model uses to decide when to call the tool. */
   description: string;
-  /**
-   * Zod shape for the tool's arguments. Use `.describe()` on each field; the text is sent to
-   * the model as part of the input schema.
-   */
+  /** Zod shape for the tool's arguments. `.describe()` each field; the model reads the text. */
   input: Input;
   /**
-   * Zod shape for the object the tool returns. It is advertised as the tool's `outputSchema`,
-   * the method's return value is validated against it, and results carry the value as
-   * `structuredContent`. Use `.describe()` on each field so the model knows what it means.
+   * Zod shape for what the tool returns. Advertised as `outputSchema`, enforced on the return
+   * value, and sent back as `structuredContent`. `.describe()` each field here too.
    */
   output?: Output;
   /** Hints about the tool's behaviour, merged over the defaults (read-only, open-world). */
@@ -58,8 +47,8 @@ export type ToolSpec<
 type ToolHandler<Args> = (args: Args) => Promise<ToolResult> | ToolResult;
 
 /**
- * A `@tool()` method collected on construction. The MCP name is resolved on access, because
- * decorator initializers run before the subclass has set its `name` field.
+ * A `@tool()` method collected on construction. The MCP name is resolved lazily because
+ * decorator initializers run before the subclass has set `name`.
  */
 export class RegisteredTool {
   constructor(
@@ -84,23 +73,13 @@ type ToolDecorator<Args, Result> = <This extends Integration>(
 ) => void;
 
 /**
- * Marks an `Integration` method as an MCP tool named `<integration>_<method>` (or `spec.name`).
- * The method receives the parsed arguments described by `spec.input`; the compiler checks that
- * its parameter type accepts them.
+ * Marks an `Integration` method as an MCP tool. The method receives the arguments `spec.input`
+ * describes, and the compiler checks its parameter and return types against the spec.
  *
- * When `spec.output` is given, the compiler also checks that the method returns a matching
- * object. At runtime the value is validated against the shape, then sent back both as
- * `structuredContent` and as a JSON text block for clients that only read text. Without
- * `spec.output`, the method may return any JSON value (sent as a text block) or a ready-made
- * `ToolResult`, which is passed through untouched.
- *
- * @example
- * @tool({
- *   description: 'Fetch a thing by id',
- *   input: { id: z.string().describe('Thing id') },
- *   output: { name: z.string().describe('Display name') },
- * })
- * async get_thing({ id }: { id: string }): Promise<{ name: string }> { ... }
+ * With `spec.output`, the return value is validated and sent as `structuredContent` plus a JSON
+ * text block for clients that only read text. Without it, the method may return any JSON value
+ * or a ready-made `ToolResult`, which is passed through untouched. See `Integration` for an
+ * example.
  */
 export function tool<Input extends InputShape, Output extends OutputShape>(
   spec: ToolSpec<Input, Output> & { output: Output },
@@ -161,12 +140,10 @@ export function errorResult(message: string): ToolResult {
 /**
  * Base class for an upstream data source. A subclass declares `name` and `baseUrl`, marks
  * each tool method with `@tool()`, and uses `this.get()` to talk to its API.
- * `register()` wires every decorated method into the server.
  *
- * An upstream behind UMD single sign-on also declares `service`. The integration is then
- * connected to the auth hub: `login` establishes a session with the app, and `this.get()` /
- * `this.getText()` / `this.session.fetch()` carry its cookies. Until the user signs in they
- * throw `AuthRequiredError`, which `handleError()` turns into a tool error asking for `login`.
+ * An upstream behind UMD single sign-on also declares `service`. `login` then establishes a
+ * session with it, and requests through `this` carry its cookies. Before the user signs in
+ * they throw `AuthRequiredError`, which becomes a tool error asking for `login`.
  *
  * @example
  * class Example extends Integration {
@@ -188,10 +165,7 @@ export abstract class Integration {
   abstract readonly name: string;
   /** Root of the upstream API, without a trailing slash. */
   abstract readonly baseUrl: string;
-  /**
-   * The single sign-on protected app this integration talks to, if any. Declaring it makes
-   * `login` establish a session with the app and routes this integration's requests through it.
-   */
+  /** The single sign-on protected app this integration talks to, if any. */
   readonly service?: ServiceSpec;
   /** Tools contributed by this integration, collected from `@tool()` methods on construction. */
   readonly tools: RegisteredTool[] = [];
@@ -236,12 +210,9 @@ export abstract class Integration {
     return request(this.baseUrl, path, query, init, this.fetcher);
   }
 
-  /**
-   * Registers every `@tool()` method with the server, and connects `service` to the auth hub
-   * so the next `login` signs in to it.
-   */
+  /** Registers every `@tool()` method with the server. */
   register(server: McpServer): void {
-    void this.connection;
+    void this.connection; // so the next `login` signs in to `service`
     for (const { name, spec, handler } of this.tools) {
       server.registerTool(
         name,
@@ -264,8 +235,8 @@ export abstract class Integration {
   }
 
   /**
-   * Converts thrown errors into tool error results. Override to customise; the default maps
-   * auth, HTTP and output-schema errors to a readable message and rethrows anything else.
+   * Converts thrown errors into tool error results: auth, HTTP and output-schema errors get a
+   * readable message, anything else is rethrown. Override to customise.
    */
   protected handleError(tool: string, error: unknown): ToolResult {
     if (error instanceof AuthRequiredError || error instanceof CasError) {

@@ -30,9 +30,8 @@ export class Directory extends Integration {
   readonly baseUrl = ORIGIN;
   /**
    * Signing in adds students to the searchable population and raises the cap to 100. The
-   * "Log in" button is a form POST, hence `loginForm`. Since `/search` is also the anonymous
-   * page, the browser is only considered signed in once it is back on `/search` after the
-   * login POST navigated it away (the auth hub starts waiting only after that navigation).
+   * "Log in" button is a form POST, hence `loginForm`. `/search` is also the anonymous page,
+   * so the browser only counts as signed in once that POST has taken it away and back.
    */
   override readonly service = {
     name: 'directory',

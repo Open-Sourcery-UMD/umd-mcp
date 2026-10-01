@@ -6,8 +6,8 @@ import { chromium, type BrowserContext, type Cookie, type Page } from 'playwrigh
 export type { Cookie as BrowserCookie } from 'playwright-core';
 
 /**
- * A browser tab driven by the sign-in flow. Kept deliberately small so tests can substitute a
- * fake and so the auth code does not depend on Playwright's API surface.
+ * A browser tab driven by the sign-in flow. The small surface keeps the auth code off
+ * Playwright's API.
  */
 export interface BrowserPage {
   /** Navigates and waits for the resulting page (after any redirects) to load. */
@@ -36,16 +36,15 @@ export type LaunchOptions = {
 export type LaunchBrowser = (options: LaunchOptions) => Promise<Browser>;
 
 /**
- * Where the sign-in browser keeps its profile (cookies, IdP session). Persisting it means a
- * later `login` usually completes without prompting, as long as the IdP session is still valid.
+ * Where the sign-in browser keeps its profile. Persisting the IdP session means a later
+ * `login` usually completes without prompting.
  */
 export const PROFILE_DIR =
   process.env.UMD_MCP_PROFILE_DIR ?? join(homedir(), '.umd-mcp', 'browser-profile');
 
 /**
- * Launches a Chromium-based browser on the persistent profile. Uses `UMD_MCP_BROWSER` as the
- * executable when set; otherwise tries the installed Chrome, then Edge, then a Playwright
- * managed Chromium. The browser download is never triggered automatically.
+ * Launches a Chromium-based browser on the persistent profile: `UMD_MCP_BROWSER` when set,
+ * else installed Chrome, then Edge, then a Playwright-managed Chromium (never downloaded).
  */
 export const launchBrowser: LaunchBrowser = async ({ headless }) => {
   await mkdir(PROFILE_DIR, { recursive: true });

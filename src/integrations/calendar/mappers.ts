@@ -165,10 +165,10 @@ function cellText(token: Token): string | undefined {
 }
 
 /**
- * Parses the provost calendar's markdown twin. Its tables are flattened to one cell per
- * paragraph: a caption "<year> Events for the <Season> Season", then repeating
- * "<event>", "Date", "<date>", "Event" cells; a range reads "<start>  To to  <end>". Only the
- * current year carries a "### <year> (current)" heading.
+ * Parses the provost calendar's markdown twin. Each table is flattened to one cell per
+ * paragraph: a "<year> Events for the <Season> Season" caption, then repeating "<event>",
+ * "Date", "<date>", "Event" cells. A date range reads "<start>  To to  <end>". Only the
+ * current year's heading reads "### <year> (current)".
  */
 export function parseAcademicCalendar(markdown: string): AcademicYear[] {
   const years: AcademicYear[] = [];

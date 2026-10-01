@@ -7,7 +7,7 @@ import { collapse } from '../../lib/text.js';
 import { type Selection, text } from '../../lib/scrape.js';
 import type { Meal, MenuItem, Nutrient, Recipe, Station } from './schemas.js';
 
-/** split-string is CommonJS but typed with an ES default export; at runtime the import is the function. */
+/** split-string's types declare a default export that its CommonJS build does not have. */
 const split = splitString as unknown as typeof splitString.default;
 
 /** Converts YYYY-MM-DD into the MM/DD/YYYY form the site's date picker submits. */

@@ -91,15 +91,13 @@ export function serviceStatus(): ServiceStatus[] {
 }
 
 /**
- * Signs the user in, in a browser the server controls (see `browser.ts`). Visits every
- * connected service that lacks a live session so the app can set its cookies, then identifies
- * the user via a CAS ticket to a one-shot loopback listener, riding on that sign-in. Anything
- * already signed in is skipped, so calling this after a session expires only re-establishes
- * that one. Concurrent calls share one login.
+ * Signs the user in through a browser the server controls. Visits every connected service
+ * without a live session so the app can set its cookies, then identifies the user with a CAS
+ * ticket sent to a one-shot loopback listener. Services already signed in are skipped, and
+ * concurrent calls share one login.
  *
- * Why a controlled browser: CAS only hands a ticket to the service named in the login URL,
- * and each app turns its ticket into a cookie for its own origin. The server can only obtain
- * those cookies by being the browser that receives them.
+ * A controlled browser is the only way to get the cookies: CAS hands each app its own ticket,
+ * and each app turns it into a cookie for its own origin.
  */
 export function login(): Promise<void> {
   inFlight ??= runLogin().finally(() => {
@@ -134,9 +132,9 @@ async function runLogin(): Promise<void> {
   const browser = await launchBrowser({ headless: false });
   try {
     const page = await browser.newPage();
-    // Services first: some (Testudo) send `renew=true`, which makes the IdP prompt even when
-    // single sign-on is fresh. Identifying last lets it ride on that sign-in silently instead
-    // of the user signing in twice.
+    // Services first: some (Testudo) send `renew=true`, which makes the IdP prompt even with
+    // fresh single sign-on. Identifying afterwards rides on that sign-in instead of prompting
+    // twice.
     for (const connection of pending) {
       connection.session = await establish(page, connection.spec);
     }

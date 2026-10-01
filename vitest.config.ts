@@ -2,8 +2,8 @@ import ts from 'typescript';
 import { defineConfig, type Plugin } from 'vitest/config';
 
 /**
- * Vite's built-in transformer (oxc) does not lower TC39 decorators yet, and Node cannot parse
- * them natively. Transpile TypeScript with tsc instead so tests see the same output as `pnpm build`.
+ * Vite's transformer (oxc) cannot lower TC39 decorators yet. Transpiling with tsc gives tests
+ * the same output as `pnpm build`.
  */
 function typescriptTranspile(): Plugin {
   return {

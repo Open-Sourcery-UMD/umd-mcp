@@ -79,7 +79,6 @@ export class Go extends Integration {
     signInPage: (url: URL) => url.pathname === '/shortener/signin',
   };
 
-  /** The CSRF token of the current session, once `csrfToken()` has read it. */
   private csrf: { session: Session; token: string } | undefined;
 
   /** The CSRF token Rails expects on non-GET requests, read from the links page once per session. */

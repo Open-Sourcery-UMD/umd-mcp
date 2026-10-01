@@ -121,9 +121,8 @@ export class Elms extends Integration {
   }
 
   /**
-   * Fetches a Canvas resource through the session. Canvas wants array parameters in bracket
-   * form (`include[]=a&include[]=b`), which the base helper's scalar query cannot express, so
-   * the query string is built with `qs` and appended to the path.
+   * Fetches a Canvas resource. Canvas wants array parameters as `include[]=a&include[]=b`,
+   * which `this.request`'s scalar query cannot express, so the query string is built with `qs`.
    */
   private fetch(path: string, query: Query): Promise<Response> {
     const search = stringify(query, { arrayFormat: 'brackets' });

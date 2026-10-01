@@ -5,9 +5,8 @@ import { AuthRequiredError } from './errors.js';
 import type { Fetcher } from './http.js';
 
 /**
- * Describes a web app behind UMD single sign-on whose session an integration needs. `login`
- * drives the sign-in browser through `loginUrl`, waits until the browser is back inside the
- * app, and copies the app's cookies into a `Session` the integration then uses for requests.
+ * A web app behind UMD single sign-on. `login` sends the browser to `loginUrl`, waits until it
+ * is back inside the app, and copies the app's cookies into a `Session`.
  */
 export type ServiceSpec = {
   /** Short identifier used in messages and `whoami`, e.g. "testudo". */
@@ -17,21 +16,16 @@ export type ServiceSpec = {
    * e.g. `https://app.testudo.umd.edu/main/`. Cookies are collected for this URL's origin.
    */
   loginUrl: string;
-  /**
-   * For apps whose sign-in is a button rather than a redirect: after `loginUrl` loads, these
-   * fields are POSTed to it as a form, which then starts the single sign-on redirect.
-   */
+  /** For apps whose sign-in is a button: fields POSTed to `loginUrl` as a form once it loads. */
   loginForm?: Record<string, string>;
   /**
-   * Returns true once the browser has landed on a page that means the session exists.
-   * Defaults to "same origin as `loginUrl`"; IdP pages are on other origins, so that is
-   * usually right. Override when the app's own sign-in pages share its origin.
+   * Whether the browser has landed inside the signed-in app. Defaults to "same origin as
+   * `loginUrl`". Override when the app's own sign-in pages share its origin.
    */
   signedIn?: (url: URL) => boolean;
   /**
-   * Returns true for a URL the app bounces a request to once it no longer accepts the
-   * session, for apps whose sign-in page is on their own origin (so the redirect is not off
-   * origin) and answers HTTP 200. Such a response marks the session expired.
+   * Whether a URL is the app's own sign-in page, for apps that bounce an expired session there
+   * (same origin, HTTP 200) rather than to the IdP. Landing on it marks the session expired.
    */
   signInPage?: (url: URL) => boolean;
 };
@@ -43,13 +37,10 @@ export function isSignedInUrl(spec: ServiceSpec, url: URL): boolean {
 
 /**
  * A signed-in session with one service: a cookie jar seeded from the sign-in browser plus a
- * `fetch` that carries those cookies, follows redirects, and stores any cookies the app sets
- * along the way (session ids rotate).
+ * `fetch` that carries those cookies and keeps any the app sets later (session ids rotate).
  *
  * The session marks itself expired, and throws `AuthRequiredError`, when the app answers 401
- * or redirects a request off its origin, which is what most UMD apps do to bounce an
- * anonymous client to the IdP, or to the page `spec.signInPage` names for apps that bounce
- * to their own sign-in page instead.
+ * or redirects off its origin (how most UMD apps bounce to the IdP), or to `spec.signInPage`.
  */
 export class Session {
   readonly jar = new CookieJar();
