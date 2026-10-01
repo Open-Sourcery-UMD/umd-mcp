@@ -1,17 +1,16 @@
-import { getRoutes, getServiceIdsByDate, getStops, getStoptimes, getTrips } from 'gtfs';
 import { z } from 'zod';
-import { today, weekdayOf } from '../../common.js';
+import { today } from '../../common.js';
 import { Integration, tool } from '../base.js';
 import {
-  directionOf,
+  departures,
   feedInfo,
-  gtfsDate,
-  openFeed,
   route,
   routePattern,
   routes,
-  STOP_FIELDS,
-  toStop,
+  stop,
+  type StopFilter,
+  stopRoutes,
+  stops,
 } from './gtfs.js';
 import { parseAlerts, parseServiceCalendar } from './parsers.js';
 import {
@@ -29,6 +28,7 @@ import {
   type ServiceCalendar,
   serviceCalendarSchema,
   serviceDate,
+  SITE,
   type Stop,
   stopId,
   stopSchema,
@@ -38,7 +38,7 @@ import {
 
 export class Transportation extends Integration {
   readonly name = 'transportation';
-  readonly baseUrl = 'https://transportation.umd.edu';
+  readonly baseUrl = SITE;
 
   @tool({
     title: 'List Shuttle-UM routes',
@@ -51,14 +51,13 @@ export class Transportation extends Integration {
     },
   })
   async list_routes(): Promise<{ feed: Feed; routes: Route[] }> {
-    await openFeed();
-    return { feed: feedInfo(), routes: routes(today()) };
+    return { feed: await feedInfo(), routes: await routes(today()) };
   }
 
   @tool({
     title: 'Get a Shuttle-UM route',
     description:
-      'One Shuttle-UM route with its stops in order (for the most common trip pattern on the given day) and the route polyline, from the published GTFS feed. No login needed.',
+      'One Shuttle-UM route with its stops in order (for the most common trip pattern on the given day, or over the whole timetable when the route does not run that day) and the route polyline, from the published GTFS feed. No login needed.',
     input: { route: routeId, date: serviceDate },
     output: routeDetailSchema.shape,
   })
@@ -69,11 +68,10 @@ export class Transportation extends Integration {
     route: string;
     date?: string | undefined;
   }): Promise<RouteDetail> {
-    await openFeed();
     const day = date ?? today();
-    const found = route(id, day);
+    const found = await route(id, day);
     if (found === undefined) throw new Error(`${this.name}: no route "${id}"`);
-    return { ...found, ...routePattern(id, day) };
+    return { ...found, ...(await routePattern(id, day)) };
   }
 
   @tool({
@@ -103,35 +101,11 @@ export class Transportation extends Integration {
         .describe('Matching stops: nearest first for a point search, otherwise by id'),
     },
   })
-  async list_stops({
-    query,
-    lat,
-    lon,
-    radius_m,
-  }: {
-    query?: string | undefined;
-    lat?: number | undefined;
-    lon?: number | undefined;
-    radius_m: number;
-  }): Promise<{ stops: Stop[] }> {
-    await openFeed();
-    if ((lat === undefined) !== (lon === undefined)) {
+  async list_stops(filter: StopFilter): Promise<{ stops: Stop[] }> {
+    if ((filter.lat === undefined) !== (filter.lon === undefined)) {
       throw new Error(`${this.name}: lat and lon must be given together`);
     }
-    const stops =
-      lat !== undefined && lon !== undefined
-        ? getStops({ stop_lat: lat, stop_lon: lon }, STOP_FIELDS, [], {
-            bounding_box_side_m: radius_m * 2,
-          })
-        : getStops({}, STOP_FIELDS, [['stop_id', 'ASC']]);
-    const needle = query?.toLowerCase();
-    return {
-      stops: stops
-        .filter(
-          (stop) => needle === undefined || (stop.stop_name ?? '').toLowerCase().includes(needle),
-        )
-        .map(toStop),
-    };
+    return { stops: await stops(filter) };
   }
 
   @tool({
@@ -141,16 +115,10 @@ export class Transportation extends Integration {
     input: { stop: stopId },
     output: stopWithRoutesSchema.shape,
   })
-  async get_stop({ stop }: { stop: string }): Promise<StopWithRoutes> {
-    await openFeed();
-    const raw = getStops({ stop_id: stop }, STOP_FIELDS, [])[0];
-    if (raw === undefined) throw new Error(`${this.name}: no stop "${stop}"`);
-    return {
-      ...toStop(raw),
-      routes: getRoutes({ stop_id: stop }, ['route_id'], [['route_id', 'ASC']]).map(
-        (found) => found.route_id,
-      ),
-    };
+  async get_stop({ stop: id }: { stop: string }): Promise<StopWithRoutes> {
+    const found = await stop(id);
+    if (found === undefined) throw new Error(`${this.name}: no stop "${id}"`);
+    return { ...found, routes: await stopRoutes(id) };
   }
 
   @tool({
@@ -172,7 +140,7 @@ export class Transportation extends Integration {
   async get_schedule({
     route: id,
     date,
-    stop,
+    stop: stopAt,
     after,
   }: {
     route: string;
@@ -180,51 +148,9 @@ export class Transportation extends Integration {
     stop?: string | undefined;
     after?: string | undefined;
   }): Promise<Schedule> {
-    await openFeed();
     const day = date ?? today();
-    if (route(id, day) === undefined) throw new Error(`${this.name}: no route "${id}"`);
-    const trips = getTrips({ route_id: id, date: gtfsDate(day) }, ['trip_id', 'direction_id'], []);
-    const directions = new Map(trips.map((trip) => [trip.trip_id, trip.direction_id]));
-    const stopTimes =
-      trips.length === 0
-        ? []
-        : getStoptimes(
-            {
-              trip_id: trips.map((trip) => trip.trip_id),
-              ...(stop === undefined ? { timepoint: 1 } : { stop_id: stop }),
-            },
-            ['trip_id', 'stop_id', 'departure_time', 'stop_headsign', 'timepoint'],
-            [['departure_time', 'ASC']],
-          );
-    const names = new Map(
-      getStops({ stop_id: stopTimes.map((stopTime) => stopTime.stop_id) }, STOP_FIELDS, []).map(
-        (found) => [found.stop_id, found.stop_name],
-      ),
-    );
-    const cutoff = after === undefined ? '' : `${after}:00`;
-    return {
-      route: id,
-      date: day,
-      weekday: weekdayOf(day),
-      service_ids: getServiceIdsByDate(gtfsDate(day)),
-      departures: stopTimes.flatMap((stopTime) =>
-        stopTime.stop_id === null ||
-        stopTime.departure_time === null ||
-        stopTime.departure_time < cutoff
-          ? []
-          : [
-              {
-                time: stopTime.departure_time,
-                stop_id: stopTime.stop_id,
-                stop_name: names.get(stopTime.stop_id) ?? null,
-                headsign: stopTime.stop_headsign,
-                direction: directionOf(directions.get(stopTime.trip_id)),
-                trip_id: stopTime.trip_id,
-                timepoint: stopTime.timepoint === 1,
-              },
-            ],
-      ),
-    };
+    if ((await route(id, day)) === undefined) throw new Error(`${this.name}: no route "${id}"`);
+    return departures(id, day, stopAt, after);
   }
 
   @tool({

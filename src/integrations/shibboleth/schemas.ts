@@ -20,8 +20,16 @@ export const servicesSchema = z
 
 export const sessionSchema = z.object({
   signed_in: z.boolean().describe('Whether a user is signed in'),
-  user: principalSchema.shape.user.nullable().describe('null when nobody is signed in'),
-  attributes: principalSchema.shape.attributes.nullable().describe('null when nobody is signed in'),
+  user: principalSchema.shape.user
+    .nullable()
+    .describe(
+      'UMD Directory ID of the signed-in user, e.g. "jsmith"; null when nobody is signed in',
+    ),
+  attributes: principalSchema.shape.attributes
+    .nullable()
+    .describe(
+      'Attributes the IdP released about the user, e.g. mail, displayName, eduPersonAffiliation; null when nobody is signed in',
+    ),
   services: servicesSchema,
 });
 

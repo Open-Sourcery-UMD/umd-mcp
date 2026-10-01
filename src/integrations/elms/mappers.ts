@@ -1,4 +1,4 @@
-import { memberOf } from '../../common.js';
+import { member, memberOf } from '../../common.js';
 import { htmlToTextOrNull } from '../../lib/html.js';
 import { trimmed } from '../../lib/text.js';
 import {
@@ -153,17 +153,29 @@ export type RawAnnouncement = {
   context_code?: string;
 };
 
+type RawTodoAssignment = {
+  id: number;
+  name?: string;
+  due_at?: string | null;
+  points_possible?: number | null;
+  html_url?: string | null;
+};
+
+/** A classic quiz on the to-do list; New Quizzes arrive as `assignment` instead. */
+type RawTodoQuiz = {
+  id: number;
+  title?: string;
+  due_at?: string | null;
+  points_possible?: number | null;
+  html_url?: string | null;
+};
+
 export type RawTodo = {
   type?: string;
   course_id?: number | null;
   context_name?: string | null;
-  assignment?: {
-    id: number;
-    name?: string;
-    due_at?: string | null;
-    points_possible?: number | null;
-    html_url?: string | null;
-  };
+  assignment?: RawTodoAssignment;
+  quiz?: RawTodoQuiz;
 };
 
 export type RawPlannerItem = {
@@ -222,17 +234,6 @@ export type RawConversation = {
   }[];
 };
 
-/** `value` as one of `values`; throws so an unexpected Canvas value surfaces as a tool error. */
-function known<const T extends readonly string[]>(
-  values: T,
-  value: string | null | undefined,
-  what: string,
-): T[number] {
-  const found = memberOf(values, value);
-  if (found === null) throw new Error(`Unknown ${what} "${value ?? ''}"`);
-  return found;
-}
-
 /** The numeric course id out of a context code like "course_12345". */
 function courseIdOf(contextCode: string | undefined): number | null {
   const match = /^course_(\d+)$/.exec(contextCode ?? '');
@@ -274,7 +275,7 @@ export function toCourse(raw: RawCourse): Course {
     id: raw.id,
     name: raw.name ?? '',
     course_code: trimmed(raw.course_code),
-    state: known(COURSE_STATES, raw.workflow_state, 'course state'),
+    state: member(COURSE_STATES, raw.workflow_state, 'course state'),
     term:
       raw.term == null
         ? null
@@ -302,14 +303,14 @@ export function toTab(raw: RawTab): Tab {
   return {
     id: raw.id,
     label: raw.label ?? raw.id,
-    type: known(TAB_TYPES, raw.type, 'tab type'),
+    type: member(TAB_TYPES, raw.type, 'tab type'),
     url: trimmed(raw.html_url),
   };
 }
 
 export function toSubmission(raw: RawSubmission): Submission {
   return {
-    state: known(SUBMISSION_STATES, raw.workflow_state, 'submission state'),
+    state: member(SUBMISSION_STATES, raw.workflow_state, 'submission state'),
     score: raw.score ?? null,
     grade: trimmed(raw.grade),
     submitted_at: raw.submitted_at ?? null,
@@ -350,12 +351,12 @@ export function toAssignment(raw: RawAssignment, courseId: number): Assignment {
 export function toEnrollment(raw: RawEnrollment & { course_id: number }): Enrollment {
   return {
     course_id: raw.course_id,
-    type: known(
+    type: member(
       ENROLLMENT_TYPES,
       raw.type?.replace(/Enrollment$/, '').toLowerCase(),
       'enrollment type',
     ),
-    state: known(ENROLLMENT_STATES, raw.enrollment_state, 'enrollment state'),
+    state: member(ENROLLMENT_STATES, raw.enrollment_state, 'enrollment state'),
     grades: toGrades(raw),
     last_activity_at: raw.last_activity_at ?? null,
     total_activity_time: raw.total_activity_time ?? null,
@@ -372,7 +373,7 @@ export function toModule(raw: RawModule): Module {
     items: (raw.items ?? []).map((item) => ({
       id: item.id,
       title: item.title ?? '',
-      type: known(MODULE_ITEM_TYPES, item.type, 'module item type'),
+      type: member(MODULE_ITEM_TYPES, item.type, 'module item type'),
       indent: item.indent ?? 0,
       content_id: item.content_id ?? null,
       url: trimmed(item.html_url),
@@ -399,19 +400,25 @@ export function toAnnouncement(raw: RawAnnouncement): Announcement {
   };
 }
 
-export function toTodoItem(
-  raw: RawTodo & { assignment: NonNullable<RawTodo['assignment']> },
-): TodoItem {
+/** Whether a to-do entry carries an assignment or a classic quiz to map. */
+export function hasTodoItem(raw: RawTodo): boolean {
+  return raw.assignment !== undefined || raw.quiz !== undefined;
+}
+
+export function toTodoItem(raw: RawTodo): TodoItem {
+  const item = raw.assignment ?? raw.quiz;
+  if (item === undefined) throw new Error('elms: to-do entry has neither assignment nor quiz');
   return {
-    type: known(TODO_TYPES, raw.type, 'to-do type'),
+    type: member(TODO_TYPES, raw.type, 'to-do type'),
+    kind: raw.assignment === undefined ? 'quiz' : 'assignment',
     course_id: raw.course_id ?? null,
     course_name: trimmed(raw.context_name),
-    assignment: {
-      id: raw.assignment.id,
-      name: raw.assignment.name ?? '',
-      due_at: raw.assignment.due_at ?? null,
-      points_possible: raw.assignment.points_possible ?? null,
-      url: trimmed(raw.assignment.html_url),
+    item: {
+      id: item.id,
+      name: raw.assignment?.name ?? raw.quiz?.title ?? '',
+      due_at: item.due_at ?? null,
+      points_possible: item.points_possible ?? null,
+      url: trimmed(item.html_url),
     },
   };
 }
@@ -419,8 +426,8 @@ export function toTodoItem(
 export function toPlannerItem(raw: RawPlannerItem): PlannerItem {
   const submissions = raw.submissions === false || raw.submissions == null ? null : raw.submissions;
   return {
-    type: known(PLANNABLE_TYPES, raw.plannable_type, 'planner item type'),
-    id: raw.plannable_id ?? 0,
+    type: memberOf(PLANNABLE_TYPES, raw.plannable_type) ?? 'other',
+    id: raw.plannable_id ?? null,
     title: raw.plannable?.title ?? '',
     date: raw.plannable_date ?? null,
     course_id: raw.course_id ?? null,
@@ -437,7 +444,7 @@ export function toPlannerItem(raw: RawPlannerItem): PlannerItem {
 
 export function toUpcomingEvent(raw: RawEvent): UpcomingEvent {
   return {
-    type: known(EVENT_TYPES, raw.type, 'event type'),
+    type: member(EVENT_TYPES, raw.type, 'event type'),
     id: raw.id,
     title: raw.title ?? '',
     start_at: raw.start_at ?? null,
@@ -452,7 +459,7 @@ export function toUpcomingEvent(raw: RawEvent): UpcomingEvent {
 export function toActivityItem(raw: RawActivity): ActivityItem {
   return {
     id: raw.id,
-    type: known(ACTIVITY_TYPES, raw.type, 'activity type'),
+    type: memberOf(ACTIVITY_TYPES, raw.type) ?? 'other',
     title: trimmed(raw.title),
     message: htmlToTextOrNull(raw.message),
     created_at: raw.created_at ?? null,
@@ -466,7 +473,7 @@ export function toConversation(raw: RawConversation): Conversation {
   return {
     id: raw.id,
     subject: trimmed(raw.subject),
-    state: known(CONVERSATION_STATES, raw.workflow_state, 'conversation state'),
+    state: member(CONVERSATION_STATES, raw.workflow_state, 'conversation state'),
     last_message: trimmed(raw.last_message),
     last_message_at: raw.last_message_at ?? null,
     message_count: raw.message_count ?? 0,

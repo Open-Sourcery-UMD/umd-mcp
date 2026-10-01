@@ -60,7 +60,8 @@ type RawOpponent = {
 export type RawGame = {
   id: number;
   sport?: RawSportRef;
-  date?: string | null;
+  /** Local (US Eastern) start, e.g. "2026-09-05T20:00:00"; every game the site serves has one. */
+  date: string;
   dateUtc?: string | null;
   time?: string | null;
   tbd?: boolean;
@@ -184,15 +185,21 @@ export type RawCalendarDay = { date: string; events?: RawGame[] };
 export type RawNextEvent = {
   id: number;
   sport?: RawSportRef;
-  date?: string | null;
+  date: string;
   dateUtc?: string | null;
   time?: string | null;
   tbd?: boolean;
   locationIndicator?: string;
   location?: string | null;
   isConference?: boolean;
-  opponent?: { title?: string | null; name?: string | null } | null;
-  media?: { tv?: string | null; video?: string | null; stats?: string | null } | null;
+  opponent?: { title?: string | null; name?: string | null; prefix?: string | null } | null;
+  media?: {
+    tv?: string | null;
+    radio?: string | null;
+    video?: string | null;
+    audio?: string | null;
+    stats?: string | null;
+  } | null;
 };
 
 function siteUrl(path: string | null | undefined): string | null {
@@ -208,8 +215,13 @@ function imageUrl(raw: RawImage | undefined): string | null {
 }
 
 /** The site's local (US Eastern) date-time, e.g. "2026-09-05T20:00:00", as YYYY-MM-DD. */
-function localDate(value: string | null | undefined): string {
-  return format(parseISO(value ?? ''), 'yyyy-MM-dd');
+function localDate(value: string): string {
+  return format(parseISO(value), 'yyyy-MM-dd');
+}
+
+/** A win-loss record as the site prints it ("<span>2</span> - <span>2</span>"), as "2-2". */
+function recordText(value: string | null | undefined): string | null {
+  return htmlToTextOrNull(value)?.replace(/\s*-\s*/g, '-') ?? null;
 }
 
 /** A game's printed start time; null when the site flags it as TBA. */
@@ -255,7 +267,6 @@ function toOpponent(raw: RawOpponent | undefined): Opponent | null {
 export function toGame(raw: RawGame): Game {
   const media = raw.media ?? null;
   const result = raw.result ?? null;
-  const type = trimmed(raw.type) ?? '';
   return {
     id: raw.id,
     sport: toSportRef(raw.sport),
@@ -264,7 +275,7 @@ export function toGame(raw: RawGame): Game {
     starts_at: trimmed(raw.dateUtc),
     status: decode(GAME_STATUSES, raw.status, 'game status'),
     state: trimmed(raw.gameStateDisplay),
-    type: GAME_TYPES[type] ?? type,
+    type: decode(GAME_TYPES, trimmed(raw.type), 'game type'),
     venue: decode(VENUES, raw.locationIndicator, 'location indicator'),
     at_or_vs: trimmed(raw.atVs),
     location: trimmed(raw.location),
@@ -305,12 +316,12 @@ export function toSchedule(raw: RawSchedule): Schedule {
     sport: toSportRef(raw.sport),
     conference: trimmed(raw.conference?.title),
     record: {
-      overall: htmlToTextOrNull(record?.overall),
-      conference: trimmed(record?.conference),
+      overall: recordText(record?.overall),
+      conference: recordText(record?.conference),
       streak: trimmed(record?.streak),
-      home: trimmed(record?.home),
-      away: trimmed(record?.away),
-      neutral: trimmed(record?.neutral),
+      home: recordText(record?.home),
+      away: recordText(record?.away),
+      neutral: recordText(record?.neutral),
     },
     games: (raw.games ?? []).map(toGame),
   };
@@ -404,7 +415,7 @@ export function toArticle(raw: RawStory): Article {
     byline: trimmed(raw.byline),
     links: (raw.links ?? []).flatMap((entry) => {
       const url = siteUrl(entry.linkFullUrl) ?? siteUrl(entry.linkUrl);
-      return url === null ? [] : [{ text: trimmed(entry.linkText), url }];
+      return url === null ? [] : [{ text: trimmed(entry.linkText) ?? url, url }];
     }),
   };
 }
@@ -418,10 +429,12 @@ export function toUpcomingEvent(raw: RawNextEvent): UpcomingEvent {
     starts_at: trimmed(raw.dateUtc),
     venue: decode(VENUES, raw.locationIndicator, 'location indicator'),
     location: trimmed(raw.location),
-    opponent: trimmed(raw.opponent?.title) ?? trimmed(raw.opponent?.name),
+    opponent: joinWords(raw.opponent?.prefix, raw.opponent?.title ?? raw.opponent?.name),
     conference_game: raw.isConference === true,
     tv: trimmed(raw.media?.tv),
+    radio: trimmed(raw.media?.radio),
     video_url: trimmed(raw.media?.video),
+    audio_url: trimmed(raw.media?.audio),
     stats_url: trimmed(raw.media?.stats),
   };
 }

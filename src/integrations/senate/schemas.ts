@@ -64,7 +64,6 @@ export const COUNCIL_GROUPS: Record<string, string> = {
   'Council of University System Staff': 'CUSS',
   'Research Council': 'Research Council',
   'Information Technology Council': 'IT Council',
-  'Plan of Organization Review Committee': 'Plan of Organization Review Committee (PORC)',
 };
 
 /**
@@ -133,7 +132,7 @@ export const approvalSchema = z.object({
     .describe(
       'Who approved, e.g. "Presidential Approval", "Chancellor\'s Approval", "BOR Approval"',
     ),
-  date: isoDate.nullable().describe('When they approved'),
+  date: isoDate.nullable().describe('When they approved; null when not recorded'),
 });
 
 export const stageSchema = z.object({
@@ -147,12 +146,22 @@ export const stageSchema = z.object({
     .describe(
       'Group that handled the stage, e.g. "Senate Executive Committee"; null for approval stages',
     ),
-  received: isoDate.nullable().describe('When the reviewer received the bill'),
-  deadline: isoDate.nullable().describe('When the reviewer was asked to report back'),
-  decided: isoDate.nullable().describe('When the reviewer decided'),
-  decision: z.string().nullable().describe('What the reviewer decided'),
-  actions: z.string().nullable().describe('What happened during the stage'),
-  next_step: z.string().nullable().describe('Where the bill went next, e.g. "Senate Review"'),
+  received: isoDate
+    .nullable()
+    .describe('When the reviewer received the bill; null when not recorded'),
+  deadline: isoDate
+    .nullable()
+    .describe('When the reviewer was asked to report back; null when no deadline was set'),
+  decided: isoDate.nullable().describe('When the reviewer decided; null while the stage is open'),
+  decision: z
+    .string()
+    .nullable()
+    .describe('What the reviewer decided; null while the stage is open'),
+  actions: z.string().nullable().describe('What happened during the stage; null when not recorded'),
+  next_step: z
+    .string()
+    .nullable()
+    .describe('Where the bill went next, e.g. "Senate Review"; null when not recorded'),
   final_senate_action: z
     .boolean()
     .nullable()
@@ -167,17 +176,29 @@ export const billSchema = z.object({
   pcc_id: z
     .string()
     .nullable()
-    .describe('Programs, Curricula & Courses (PCC) proposal id, for curriculum bills'),
+    .describe(
+      'Programs, Curricula & Courses (PCC) proposal id; null when the bill is not a curriculum proposal',
+    ),
   title: z.string().describe('Bill title'),
-  proposed: isoDate.nullable().describe('When the proposal was submitted'),
-  sponsor: z.string().nullable().describe('Who proposed it'),
-  description: z.string().nullable().describe('The proposal as submitted'),
-  policy_url: z.string().nullable().describe('The policy the bill concerns, when there is one'),
-  start_year: z.number().int().nullable().describe('Calendar year the bill started in'),
-  keywords: z.string().nullable().describe('Keywords the Senate Office tagged the bill with'),
+  proposed: isoDate.nullable().describe('When the proposal was submitted; null when not recorded'),
+  sponsor: z.string().nullable().describe('Who proposed it; null when not recorded'),
+  description: z.string().nullable().describe('The proposal as submitted; null when not recorded'),
+  policy_url: z
+    .string()
+    .nullable()
+    .describe('The policy the bill concerns; null when it concerns none'),
+  start_year: z
+    .number()
+    .int()
+    .nullable()
+    .describe('Calendar year the bill started in; null when not recorded'),
+  keywords: z
+    .string()
+    .nullable()
+    .describe('Keywords the Senate Office tagged the bill with; null when there are none'),
   is_active: z.boolean().describe('Whether the bill is still moving through the process'),
   is_complete: z.boolean().describe('Whether the process has finished'),
-  completed: isoDate.nullable().describe('When the process finished'),
+  completed: isoDate.nullable().describe('When the process finished; null while it is under way'),
   url: billUrl,
   related_bills: z.array(relatedBillSchema).describe('Bills the Senate Office linked to this one'),
   stages: z.array(stageSchema).describe("The bill's history, most recent stage first"),
@@ -191,13 +212,15 @@ const termEnds = z
 
 export const senatorSchema = z.object({
   name: z.string().describe('Full name'),
-  email: z.string().nullable(),
+  email: z.string().nullable().describe('Email address; null when not listed'),
   seat: z.string().describe('Seat held, e.g. "Tenured Faculty - CMNS"'),
-  population: z.string().describe('Population the seat represents, e.g. "Faculty"'),
+  population: population.describe('Population the seat represents, e.g. "Faculty"'),
   college: z
     .string()
     .nullable()
-    .describe('College or division acronym, e.g. "CMNS", "ENGR", "VPSA"'),
+    .describe(
+      'College or division acronym, e.g. "CMNS", "ENGR", "VPSA"; null when the seat is campus-wide',
+    ),
   term_ends: termEnds,
   constituency: z
     .string()
@@ -207,11 +230,14 @@ export const senatorSchema = z.object({
 export const constituentSchema = z.object({
   directory_id: z.string().describe('UMD Directory ID'),
   name: z.string().describe('Full name'),
-  title: z.string().nullable().describe('Job title, or null for students'),
-  college: z.string().nullable().describe('College or division acronym'),
-  department: z.string().nullable().describe('Department, e.g. "CMNS-Computer Science"'),
-  major: z.string().nullable().describe('Major, for students'),
-  population: z.string().describe('Population the Senate files them under, e.g. "Faculty"'),
+  title: z.string().nullable().describe('Job title; null when a student'),
+  college: z.string().nullable().describe('College or division acronym; null when not recorded'),
+  department: z
+    .string()
+    .nullable()
+    .describe('Department, e.g. "CMNS-Computer Science"; null when not recorded'),
+  major: z.string().nullable().describe('Major; null when not a student'),
+  population: population.describe('Population the Senate files them under, e.g. "Faculty"'),
   constituency: z
     .string()
     .describe('Constituency they vote in, e.g. "Tenured/Tenure-Track Faculty"'),
@@ -227,15 +253,21 @@ export const groupSummarySchema = z.object({
   type: groupType.describe(
     '"committee" for a Senate standing or special committee, "council" for a University council, "past_council" for a dissolved council or task force',
   ),
-  summary: z.string().nullable().describe('One-paragraph description from the listing page'),
+  summary: z
+    .string()
+    .nullable()
+    .describe('One-paragraph description from the listing page; null when it has none'),
   url: z.string().describe('Page on senate.umd.edu'),
 });
 
 export const memberSchema = z.object({
   name: z.string().describe('Name as "Last, First"'),
   seat: z.string().describe('Seat held, e.g. "Faculty", "Ex-Officio - Provost\'s Rep"'),
-  college: z.string().nullable().describe('College or division acronym'),
-  email: z.string().nullable(),
+  college: z
+    .string()
+    .nullable()
+    .describe('College or division acronym; null when the seat is not tied to one'),
+  email: z.string().nullable().describe('Email address; null when not listed'),
   term_ends: termEnds,
 });
 
@@ -253,7 +285,7 @@ export const pastBillSchema = z.object({
   title: z.string().describe('Bill title'),
   is_active: z.boolean().describe('Whether the bill is still moving through the process'),
   is_complete: z.boolean().describe('Whether the process has finished'),
-  completed: isoDate.nullable().describe('When the process finished'),
+  completed: isoDate.nullable().describe('When the process finished; null while it is under way'),
   url: billUrl,
 });
 
@@ -283,7 +315,12 @@ export const committeeMeetingSchema = z.object({
 });
 
 export const groupSchema = groupSummarySchema.extend({
-  about: z.string().nullable().describe("The group's page as plain text: charge, chair, contact"),
+  about: z
+    .string()
+    .nullable()
+    .describe(
+      "The group's page as plain text: charge, chair, contact; null when the page is empty",
+    ),
   links: z.array(linkSchema).describe('Links on the page (documents, forms, email addresses)'),
   members: z.array(memberSchema).describe('Current members; empty for past councils'),
   active_bills: z.array(activeBillSchema).describe('Bills the group is reviewing now'),
@@ -301,7 +338,7 @@ export const senateMeetingSchema = z.object({
     .string()
     .nullable()
     .describe(
-      'What makes the meeting special, e.g. "President\'s State of the Campus Address"; null for a regular meeting',
+      'What makes the meeting special, e.g. "President\'s State of Campus Address"; null when it is a regular meeting',
     ),
   documents: z
     .array(linkSchema)

@@ -1,31 +1,21 @@
 import * as cheerio from 'cheerio';
 import type { CheerioAPI } from 'cheerio';
 import { format, isValid, parse } from 'date-fns';
-import type { z } from 'zod';
-import {
-  decode,
-  type Delivery,
-  DELIVERY_METHODS,
-  type MeetingType,
-  type schoolDay,
-  type Weekday,
-} from '../../../common.js';
+import { decode, DELIVERY_METHODS, type MeetingType, type Weekday } from '../../../common.js';
+import { isoDateTimeFrom } from '../../../lib/dates.js';
 import type { Query } from '../../../lib/http.js';
-import { absoluteUrl, type Selection, text, textOrNull } from '../../../lib/scrape.js';
+import { absoluteUrl, type Selection, text, textOrNull, texts } from '../../../lib/scrape.js';
 import type {
   Building,
   Course,
-  COURSE_LEVELS,
-  CREDIT_COMPARISONS,
   Department,
   GenEdCategory,
   Listing,
   Meeting,
+  SearchArgs,
   Section,
   Syllabus,
-  TeachingCenter,
   Term,
-  TIME_COMPARISONS,
 } from './schemas.js';
 
 /** Root of the Schedule of Classes site; relative links resolve against it. */
@@ -54,12 +44,10 @@ const CLASS_TYPES: Record<string, MeetingType> = {
   Lab: 'lab',
 };
 
-/** Converts "09/29/2026 at 04:30 PM" into "2026-09-29T16:30". */
+/** Converts "09/29/2026 at 04:30 PM" into "2026-09-29T16:30:00". */
 function parseSeatsAsOf(value: string): string | null {
   const match = /\d{2}\/\d{2}\/\d{4} at \d{1,2}:\d{2} (?:AM|PM)/.exec(value);
-  if (match === null) return null;
-  const date = parse(match[0], "MM/dd/yyyy 'at' h:mm a", new Date(0));
-  return isValid(date) ? format(date, "yyyy-MM-dd'T'HH:mm") : null;
+  return match === null ? null : isoDateTimeFrom(match[0], "MM/dd/yyyy 'at' h:mm a");
 }
 
 /** Parses the term dropdown of the landing page. */
@@ -143,15 +131,6 @@ function parseRequirements($: CheerioAPI, course: Selection): Requirements {
   return fields as Requirements;
 }
 
-/** Text of every element matching `selector`, blanks dropped. */
-function texts($: CheerioAPI, root: Selection, selector: string): string[] {
-  return root
-    .find(selector)
-    .map((_, element) => text($(element)))
-    .get()
-    .filter((value) => value !== '');
-}
-
 /** Parses one `.course` block, without its sections. */
 function parseCourse($: CheerioAPI, course: Selection): Course {
   const min = Number(text(course.find('.course-min-credits').first()));
@@ -199,9 +178,7 @@ function parseSection($: CheerioAPI, section: Selection): Section {
   const waitlist = textOrNull(section.find('.waitlist-count'));
   return {
     id: text(section.find('.section-id').first()),
-    instructors: texts($, section, '.section-instructor')
-      .map((name) => name.replace(/^Instructor:\s*/i, ''))
-      .filter((name) => name !== '' && name !== 'TBA'),
+    instructors: texts($, section, '.section-instructor').filter((name) => name !== 'TBA'),
     delivery: decode(DELIVERY_METHODS, deliveryCode ?? 'f2f', 'delivery method'),
     seats: {
       total: Number(text(section.find('.total-seats-count'))),
@@ -321,24 +298,6 @@ function splitClockTime(value: string | undefined): [string, string, string] {
   if (!isValid(time)) return ['', '', ''];
   return [format(time, 'hh'), format(time, 'mm'), format(time, 'a')];
 }
-
-/** What `testudo_soc_search_courses` takes, once validated. */
-export type SearchArgs = {
-  term_id: string;
-  course_id?: string | undefined;
-  section_id?: string | undefined;
-  instructor?: string | undefined;
-  open_sections_only?: boolean | undefined;
-  credits?: number | undefined;
-  credits_compare: (typeof CREDIT_COMPARISONS)[number];
-  level: (typeof COURSE_LEVELS)[number];
-  delivery?: Delivery[] | undefined;
-  time_compare?: (typeof TIME_COMPARISONS)[number] | undefined;
-  start_time?: string | undefined;
-  end_time?: string | undefined;
-  days?: z.infer<typeof schoolDay>[] | undefined;
-  teaching_center: TeachingCenter;
-};
 
 /** The query string the site's search form submits for `args`; empty fields are always sent. */
 export function searchQuery(args: SearchArgs): Query {

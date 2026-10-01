@@ -12,14 +12,25 @@ export type BusyLevel = (typeof BUSY_LEVELS)[keyof typeof BUSY_LEVELS];
 
 export const busyLevel = z.enum(Object.values(BUSY_LEVELS) as BusyLevel[]);
 
+/** The three dining halls, with the field each one's level sits in on the busy meter's JSON. */
+export const HALL_LEVELS = {
+  '251 North': 'level1',
+  'South Campus': 'level2',
+  Yahentamitsi: 'level3',
+} as const;
+
+export type HallName = keyof typeof HALL_LEVELS;
+
+export const hallName = z.enum(Object.keys(HALL_LEVELS) as HallName[]);
+
 export const busyMeterSchema = z.object({
   available: z.boolean().describe('false when the crowd-level service did not answer'),
   reason: z.string().nullable().describe('Why it is unavailable; null when available'),
   halls: z
     .array(
       z.object({
-        name: z.string().describe('"251 North", "South Campus" or "Yahentamitsi"'),
-        level: busyLevel,
+        name: hallName.describe('Dining hall'),
+        level: busyLevel.describe('Crowd level as the site labels it'),
       }),
     )
     .describe('Crowd level per dining hall; empty when unavailable'),

@@ -22,7 +22,7 @@ export function htmlToText(html: string, { tables = 'rows' }: TextOptions = {}):
     ],
   };
   return convert(html, options)
-    .replaceAll(' ', ' ')
+    .replaceAll('\u00a0', ' ')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();

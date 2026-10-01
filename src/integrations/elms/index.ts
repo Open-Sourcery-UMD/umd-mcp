@@ -1,9 +1,8 @@
-import { addDays, format, parseISO, subDays } from 'date-fns';
+import { addDays, format, parseISO } from 'date-fns';
 import parseLinkHeader from 'parse-link-header';
-import { stringify } from 'qs';
 import { z } from 'zod';
 import { isoDate, limit, today } from '../../common.js';
-import { type Fetcher, HttpError } from '../../lib/http.js';
+import { type Fetcher, HttpError, type Query } from '../../lib/http.js';
 import { htmlToTextOrNull } from '../../lib/html.js';
 import { trimmed } from '../../lib/text.js';
 import { Integration, tool } from '../base.js';
@@ -22,6 +21,7 @@ import {
   type RawTab,
   type RawTodo,
   type RawUser,
+  hasTodoItem,
   SITE,
   toActivityItem,
   toAnnouncement,
@@ -85,12 +85,14 @@ const PAGE_SIZE = 50;
 /** How far elms_list_announcements looks back and elms_get_planner looks ahead by default. */
 const DEFAULT_WINDOW_DAYS = 14;
 
-type Query = Record<string, string | number | (string | number)[]>;
+/** `date` plus `days` (negative for earlier), as YYYY-MM-DD. */
+function plusDays(date: string, days: number): string {
+  return format(addDays(parseISO(date), days), 'yyyy-MM-dd');
+}
 
 /** `days` from today in College Park, as YYYY-MM-DD. */
 function fromToday(days: number): string {
-  const base = parseISO(today());
-  return format(days < 0 ? subDays(base, -days) : addDays(base, days), 'yyyy-MM-dd');
+  return plusDays(today(), days);
 }
 
 /** Strips the `while(1);` prefix Canvas puts on cookie-session JSON responses. */
@@ -121,25 +123,22 @@ export class Elms extends Integration {
   }
 
   /**
-   * Fetches a Canvas resource. Canvas wants array parameters as `include[]=a&include[]=b`,
-   * which `this.request`'s scalar query cannot express, so the query string is built with `qs`.
+   * Fetches a Canvas resource. Array parameters are spelled the way Canvas wants them,
+   * `include[]=a&include[]=b`, by keying them `'include[]'`.
    */
-  private fetch(path: string, query: Query): Promise<Response> {
-    const search = stringify(query, { arrayFormat: 'brackets' });
-    return this.request(search === '' ? path : `${path}?${search}`, undefined, {
-      headers: { accept: 'application/json' },
-    });
+  private canvasRequest(path: string, query: Query): Promise<Response> {
+    return this.request(path, query, { headers: { accept: 'application/json' } });
   }
 
   /** GET one JSON resource. */
   private async json<T>(path: string, query: Query = {}): Promise<T> {
-    return canvasJson<T>(await this.fetch(path, query));
+    return canvasJson<T>(await this.canvasRequest(path, query));
   }
 
   /** GET every page of a list resource, following `Link: rel="next"` up to `pages`. */
   private async list<T>(path: string, query: Query = {}, pages = MAX_PAGES): Promise<T[]> {
     const items: T[] = [];
-    let res = await this.fetch(path, { per_page: PAGE_SIZE, ...query });
+    let res = await this.canvasRequest(path, { per_page: PAGE_SIZE, ...query });
     for (let page = 1; ; page++) {
       items.push(...(await canvasJson<T[]>(res)));
       const next = parseLinkHeader(res.headers.get('link'))?.['next']?.url;
@@ -185,7 +184,7 @@ export class Elms extends Integration {
   })
   async list_courses({ state }: { state: CourseState }): Promise<{ courses: Course[] }> {
     const courses = await this.list<RawCourse>('users/self/courses', {
-      include: ['term', 'total_scores', 'teachers'],
+      'include[]': ['term', 'total_scores', 'teachers'],
       ...(state === 'all' ? {} : { enrollment_state: state }),
     });
     return { courses: courses.map(toCourse) };
@@ -201,7 +200,7 @@ export class Elms extends Integration {
   async get_course({ course_id }: { course_id: number }): Promise<CourseDetail> {
     const [course, frontPage, tabs] = await Promise.all([
       this.json<RawCourse>(`courses/${course_id}`, {
-        include: ['syllabus_body', 'term', 'teachers', 'total_scores'],
+        'include[]': ['syllabus_body', 'term', 'teachers', 'total_scores'],
       }),
       this.optional<RawPage>(`courses/${course_id}/front_page`),
       this.optional<RawTab[]>(`courses/${course_id}/tabs`),
@@ -236,7 +235,7 @@ export class Elms extends Integration {
     bucket?: AssignmentBucket | undefined;
   }): Promise<{ assignments: Assignment[] }> {
     const assignments = await this.list<RawAssignment>(`courses/${course_id}/assignments`, {
-      include: ['submission'],
+      'include[]': ['submission'],
       order_by: 'due_at',
       ...(bucket === undefined ? {} : { bucket }),
     });
@@ -262,7 +261,7 @@ export class Elms extends Integration {
   }): Promise<Submission> {
     const submission = await this.json<RawSubmission>(
       `courses/${course_id}/assignments/${assignment_id}/submissions/self`,
-      { include: ['submission_comments'] },
+      { 'include[]': ['submission_comments'] },
     );
     return toSubmission(submission);
   }
@@ -281,13 +280,14 @@ export class Elms extends Integration {
   }: {
     course_id?: number | undefined;
   }): Promise<{ enrollments: Enrollment[] }> {
-    const enrollments = await this.list<RawEnrollment>(
-      'users/self/enrollments',
-      course_id === undefined ? {} : { course_id },
-    );
+    // `users/self/enrollments` ignores a `course_id` parameter, so the course is picked here.
+    const enrollments = await this.list<RawEnrollment>('users/self/enrollments');
     return {
       enrollments: enrollments
-        .filter((raw): raw is RawEnrollment & { course_id: number } => raw.course_id !== undefined)
+        .filter(
+          (raw): raw is RawEnrollment & { course_id: number } =>
+            raw.course_id !== undefined && (course_id === undefined || raw.course_id === course_id),
+        )
         .map(toEnrollment),
     };
   }
@@ -301,7 +301,7 @@ export class Elms extends Integration {
   })
   async list_modules({ course_id }: { course_id: number }): Promise<{ modules: Module[] }> {
     const modules = await this.list<RawModule>(`courses/${course_id}/modules`, {
-      include: ['items', 'content_details'],
+      'include[]': ['items', 'content_details'],
     });
     return { modules: modules.map(toModule) };
   }
@@ -331,7 +331,7 @@ export class Elms extends Integration {
     end_date?: string | undefined;
   }): Promise<{ announcements: Announcement[] }> {
     const announcements = await this.list<RawAnnouncement>('announcements', {
-      context_codes: course_ids.map((id) => `course_${id}`),
+      'context_codes[]': course_ids.map((id) => `course_${id}`),
       start_date: start_date ?? fromToday(-DEFAULT_WINDOW_DAYS),
       end_date: end_date ?? today(),
     });
@@ -341,20 +341,13 @@ export class Elms extends Integration {
   @tool({
     title: 'Get ELMS to-do list',
     description:
-      'Assignments the signed-in student still needs to submit, as ELMS (Canvas) lists them in the to-do sidebar. Requires login.',
+      'Assignments and classic quizzes the signed-in student still needs to submit, as ELMS (Canvas) lists them in the to-do sidebar. Requires login.',
     input: {},
     output: { items: z.array(todoItemSchema) },
   })
   async get_todo(): Promise<{ items: TodoItem[] }> {
     const items = await this.list<RawTodo>('users/self/todo');
-    return {
-      items: items
-        .filter(
-          (raw): raw is RawTodo & { assignment: NonNullable<RawTodo['assignment']> } =>
-            raw.assignment !== undefined,
-        )
-        .map(toTodoItem),
-    };
+    return { items: items.filter(hasTodoItem).map(toTodoItem) };
   }
 
   @tool({
@@ -374,9 +367,10 @@ export class Elms extends Integration {
     start_date?: string | undefined;
     end_date?: string | undefined;
   }): Promise<{ items: PlannerItem[] }> {
+    // Canvas reads `end_date` as the start of that day, so the day after keeps it inclusive.
     const items = await this.list<RawPlannerItem>('planner/items', {
       start_date: start_date ?? today(),
-      end_date: end_date ?? fromToday(DEFAULT_WINDOW_DAYS),
+      end_date: plusDays(end_date ?? fromToday(DEFAULT_WINDOW_DAYS), 1),
     });
     return { items: items.map(toPlannerItem) };
   }
@@ -442,7 +436,10 @@ export class Elms extends Integration {
   }: {
     conversation_id: number;
   }): Promise<ConversationDetail> {
-    const raw = await this.json<RawConversation>(`conversations/${conversation_id}`);
+    // Reading through the API marks the conversation read unless told otherwise.
+    const raw = await this.json<RawConversation>(`conversations/${conversation_id}`, {
+      auto_mark_as_read: 'false',
+    });
     return { ...toConversation(raw), messages: toMessages(raw) };
   }
 }

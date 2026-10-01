@@ -26,7 +26,7 @@ export class Shibboleth extends Integration {
     name: 'login',
     title: 'Sign in to UMD',
     description:
-      'Sign in with a UMD Directory ID. Opens a dedicated browser window (Chrome or Edge) at the UMD login page and waits up to 5 minutes for the user to finish, including Duo; the window closes by itself afterwards. The same sign-in also establishes sessions with every service other tools need (e.g. Testudo). Some services force re-authentication, so expect a prompt even if the user signed in recently. Call this when another tool reports that sign-in is required or a session has expired.',
+      'Sign in with a UMD Directory ID. Opens a dedicated browser window (Chrome or Edge) at the UMD login page and waits up to 5 minutes per step for the user to finish: once for the UMD login including Duo, then once for each service other tools need (e.g. Testudo), which the same sign-in establishes sessions with; the window closes by itself afterwards. Some services force re-authentication, so expect a prompt even if the user signed in recently. Call this when another tool reports that sign-in is required or a session has expired. Tools whose description ends "Requires login." need this first; those ending "No login needed." do not.',
     input: {},
     output: { ...principalSchema.shape, services: servicesSchema },
   })
@@ -39,7 +39,7 @@ export class Shibboleth extends Integration {
     name: 'logout',
     title: 'Sign out of UMD',
     description:
-      'Forget the signed-in user and every service session, and clear the sign-in browser so the next login prompts again.',
+      'Forget the signed-in user and every service session, and clear the sign-in browser so the next login prompts again. No login needed.',
     input: {},
   })
   async logout(): Promise<ToolResult> {
@@ -51,7 +51,7 @@ export class Shibboleth extends Integration {
     name: 'whoami',
     title: 'Who am I',
     description:
-      'Report the currently signed-in UMD user, or that nobody is signed in, and which services have a live session.',
+      'Report the currently signed-in UMD user, or that nobody is signed in, and which services have a live session. No login needed.',
     input: {},
     output: sessionSchema.shape,
   })

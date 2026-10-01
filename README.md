@@ -3,7 +3,8 @@
 An [MCP](https://modelcontextprotocol.io) server exposing University of Maryland data: courses
 and grades (PlanetTerp, the Schedule of Classes, the Testudo student portal, ELMS), dining
 menus and news, Shuttle-UM routes and timetables, athletics, the campus calendar, TerpLink
-organizations and events, RecWell facilities, the University Senate, and the campus directory.
+organizations and events, RecWell facilities and the ActiveTerp recreation portal, the University
+Senate, and the campus directory.
 
 ## Development
 
@@ -123,6 +124,39 @@ Tool names are `<integration>_<method>`, except the sign-in tools. Integrations 
 | `testudo_get_grade_options`                 | The grading option (regular or pass/fail) the signed-in student has elected for each course in a term, from the Testudo student portal, with the pass/fail credit totals.                                                                                                                                                                                                                                                                                     |
 | `testudo_get_parent_access`                 | Parent or guest accounts the signed-in student has granted access to their Testudo records.                                                                                                                                                                                                                                                                                                                                                                   |
 
+### activeterp
+
+| Tool                                | Description                                                                                                                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `activeterp_list_program_filters`   | The classifications (e.g. Fitness, Aquatics, Esports) and tags (e.g. Adventure Trips) that activeterp.umd.edu programs are filed under.                                              |
+| `activeterp_list_programs`          | Programs on activeterp.umd.edu (group fitness classes, swim lessons, adventure trips, clinics, camps, esports bookings) with their price, optionally within classifications or tags. |
+| `activeterp_search_programs`        | Search activeterp.umd.edu programs by name, as the site search bar does.                                                                                                             |
+| `activeterp_get_program`            | One activeterp.umd.edu program: description, classification, price, whether a waiver is required, and how it is scheduled.                                                           |
+| `activeterp_list_program_offerings` | An activeterp.umd.edu program's offerings in a semester: each dated session or series with its price, open spots, meeting pattern and cancelled dates.                               |
+| `activeterp_list_program_instances` | An activeterp.umd.edu program's bookable time slots over the coming days: start and end, location, instructor, class size and open spots.                                            |
+| `activeterp_list_facilities`        | Bookable facilities on activeterp.umd.edu (currently the Terps Esports Center stations) with their parent facility and blurb.                                                        |
+| `activeterp_get_facility`           | One activeterp.umd.edu facility: description, type, area, maximum occupancy and regular hours per weekday.                                                                           |
+| `activeterp_get_facility_schedule`  | Bookings on the activeterp.umd.edu facility calendar in a date window, for one facility or all, with recurrence rules.                                                               |
+| `activeterp_list_calendars`         | The calendars the activeterp.umd.edu home page can show (e.g. Group Fitness Classes, Adventure Program).                                                                             |
+| `activeterp_list_calendar_events`   | The activeterp.umd.edu home page calendar: every scheduled class, reservation slot and event over the next several days.                                                             |
+
+### activeterp-member (login)
+
+| Tool                                        | Description                                                                                                                                              |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activeterp_member_get_profile`             | The signed-in member's activeterp.umd.edu profile: name, University ID number, eligibility, date of birth, gender and contact details on file.           |
+| `activeterp_member_list_my_memberships`     | The signed-in member's RecWell memberships, current and past: type, start and expiry dates, renewal terms and refund or cancellation status.             |
+| `activeterp_member_get_access_history`      | The signed-in member's facility check-ins: facility, check-in station, entrance and exit devices, time, and whether access was granted.                  |
+| `activeterp_member_list_my_orders`          | The signed-in member's orders: order number, date, where it was placed, totals and whether it was voided.                                                |
+| `activeterp_member_list_my_invoices`        | The signed-in member's invoices, all of them or only the unpaid ones: number, date, total, paid and owing amounts and a PDF link.                        |
+| `activeterp_member_get_invoice`             | One of the signed-in member's invoices: billing details, subtotal, tax, total, amount paid, outstanding balance and the line items.                      |
+| `activeterp_member_list_memberships`        | Memberships RecWell sells on activeterp.umd.edu (day passes, the free Group Fitness and Bouldering Zone memberships) with their blurb and price.         |
+| `activeterp_member_get_membership`          | One membership RecWell sells with each purchasable term: name, billing, upfront price and the dates it would cover for the signed-in member.             |
+| `activeterp_member_list_towel_services`     | Towel services RecWell sells on activeterp.umd.edu (semester and annual) with their price.                                                               |
+| `activeterp_member_get_towel_service`       | One towel service with each purchasable term: name, billing, upfront price and the dates it would cover for the signed-in member.                        |
+| `activeterp_member_list_multi_visit_passes` | Multi-visit passes RecWell sells (personal training session packages, member visit passes) with their category list, price and any purchase requirement. |
+| `activeterp_member_get_multi_visit_pass`    | One multi-visit pass: category, price, full description and any purchase requirement.                                                                    |
+
 ### athletics
 
 | Tool                            | Description                                                                                                                                           |
@@ -138,7 +172,6 @@ Tool names are `<integration>_<method>`, except the sign-in tools. Integrations 
 | `athletics_get_article`         | The full text of a Maryland Athletics news story (game recaps, previews, announcements) by story id.                                                  |
 | `athletics_get_calendar`        | Every Maryland game or event in a date range across all sports (or one sport), grouped by day, with opponents, venues, media links and results.       |
 | `athletics_get_upcoming_events` | A Maryland team's next few games with date, time, opponent, venue and where to watch.                                                                 |
-| `athletics_get_live_scores`     | Maryland games in progress right now with their live scores, as the site reports them; empty when nothing is being played.                            |
 
 ### calendar
 
@@ -267,8 +300,11 @@ src/integrations/example/
   index.ts      # the Integration subclass, and nothing else
   schemas.ts    # input schemas, exported output schemas, and their inferred types
   mappers.ts    # Raw* types for the upstream payloads and the to*() functions (parsers.ts when scraping HTML)
-  NOTES.md      # what was learned crawling the upstream: endpoints, shapes, quirks, dead ends
 ```
+
+An upstream with a public side and a signed-in side becomes two classes in sibling folders
+(`testudo/soc` and `testudo/portal`, `activeterp/catalog` and `activeterp/member`), with
+anything they share in a `common.ts` beside them.
 
 Subclass `Integration` from `src/integrations/base.ts`, declare `name` and `baseUrl`, and mark
 each tool method with `@tool()`. The MCP tool name is `<name>_<method>` (pass `name` in the
@@ -316,10 +352,18 @@ Conventions the existing integrations follow:
 - Reuse the shared schemas in `src/common.ts` (`term`, `courseId`, `sectionId`, `weekday`,
   `isoDate`, `pagination`, ...) and the helpers in `src/lib/`: `text.ts` (blank-to-null
   trimming, joining), `html.ts` (HTML to plain text), `scrape.ts` (cheerio text, links and
-  tables). Reach for an npm package before writing a parser by hand.
+  tables), `dates.ts` (printed dates to YYYY-MM-DD). Reach for an npm package before writing
+  a parser by hand.
 - `this.get(path, query)` fetches JSON and `this.getText()` HTML relative to `baseUrl`;
-  `this.request()` is the general form for POSTs. HTTP errors and output-schema mismatches
-  become tool error results automatically; override `handleError()` to customise that.
+  `this.postForm()` and `this.postJson()` send what the site's own forms and scripts send, and
+  `this.request()` is the general form. A query value may be an array (the key repeats), and
+  every request times out after a minute. HTTP errors (with the server's own message when it
+  gives one), network failures and output-schema mismatches become tool error results
+  automatically; override `handleError()` to customise that.
+- An anonymous flow that still needs a server session (a search kept in the session, a token
+  tied to a cookie) overrides `fetcher` with `cookieFetcher()` from `src/lib/http.ts`. A value
+  read once per signed-in session (a CSRF token, an account id) goes through `perSession()`
+  from `src/lib/session.ts`.
 
 ### Integrations behind single sign-on
 
@@ -340,6 +384,12 @@ export class StudentPortal extends Integration {
     signedIn: (url: URL) => url.hash.startsWith('#/main'),
     // Optional: fields to POST to loginUrl for apps whose sign-in is a button, not a redirect.
     // loginForm: { login: 'Log in' },
+    // Optional: a button to click on loginUrl when its form carries a per-page token the
+    // browser must send (an anti-forgery token, a provider field).
+    // loginClick: 'button.btn-sso-shibboleth',
+    // Optional: when a response means the session is gone. Default: 401, or a redirect off
+    // the app's origin or to signInPage.
+    // expired: (response, requested, landed) => response.status === 403 || landed.pathname === '/expired',
     // Optional: the app's own sign-in page, for apps that bounce an expired session there
     // (same origin, HTTP 200) instead of answering 401 or redirecting to the IdP.
     // signInPage: (url: URL) => url.pathname === '/shortener/signin',

@@ -57,7 +57,7 @@ export function weekdayOf(date: string | Date): Weekday {
 }
 
 /** Full weekday names as sites print them, mapped to the shared vocabulary. */
-export const WEEKDAY_NAMES: Record<string, Weekday> = {
+const WEEKDAY_NAMES: Record<string, Weekday> = {
   monday: 'M',
   tuesday: 'Tu',
   wednesday: 'W',
@@ -100,13 +100,7 @@ export const meetingType = z.enum(MEETING_TYPES);
 /** `limit`/`offset` input fields for a paged tool. */
 export function pagination(defaultLimit: number, max = 100) {
   return {
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(max)
-      .default(defaultLimit)
-      .describe(`Maximum number of records to return, 1-${max} (default ${defaultLimit})`),
+    limit: limit(defaultLimit, max),
     offset: z
       .number()
       .int()
@@ -149,6 +143,20 @@ export function decodeOrNull<T extends Record<PropertyKey, string>>(
   return code == null ? null : (table[code as keyof T] ?? null);
 }
 
+/**
+ * `value` when it is one of `values`. Throws otherwise, so an unexpected upstream value
+ * surfaces as a tool error instead of bad data; the array-shaped twin of `decode`.
+ */
+export function member<const T extends readonly string[]>(
+  values: T,
+  value: string | null | undefined,
+  what: string,
+): T[number] {
+  const found = memberOf(values, value);
+  if (found === null) throw new Error(`Unknown ${what} "${String(value)}"`);
+  return found;
+}
+
 /** `value` when it is one of `values`; null otherwise. */
 export function memberOf<const T extends readonly string[]>(
   values: T,
@@ -169,9 +177,9 @@ export const tableSchema = z.object({
 
 export const postalAddressSchema = z.object({
   street: z.array(z.string()).describe('Street lines, blank lines dropped'),
-  city: z.string().nullable(),
-  state: z.string().nullable(),
-  zip: z.string().nullable(),
+  city: z.string().nullable().describe('null when not given'),
+  state: z.string().nullable().describe('State or province; null when not given'),
+  zip: z.string().nullable().describe('Postal code; null when not given'),
 });
 
 export type Link = z.infer<typeof linkSchema>;

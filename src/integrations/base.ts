@@ -3,18 +3,20 @@ import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/
 import { z } from 'zod';
 import { connect, type Connection, type ServiceSpec, type Session } from '../lib/auth.js';
 import { AuthRequiredError, CasError } from '../lib/errors.js';
-import { type Fetcher, getJson, getText, HttpError, type Query, request } from '../lib/http.js';
+import {
+  type Fetcher,
+  getJson,
+  getText,
+  HttpError,
+  plainFetch,
+  type Query,
+  request,
+} from '../lib/http.js';
 
 export type ToolResult = CallToolResult;
 
-/** Any zod raw shape, e.g. `{ course: z.string() }`. */
+/** A zod raw shape, e.g. `{ course: z.string() }`, as a tool's input or output is declared. */
 export type Shape = Record<string, z.ZodType>;
-
-/** Zod shape for a tool's arguments. */
-export type InputShape = Shape;
-
-/** Zod shape for the object a tool returns. */
-export type OutputShape = Shape;
 
 /** Parsed arguments for a given input shape. */
 export type InputOf<S extends Shape> = z.infer<z.ZodObject<S>>;
@@ -23,10 +25,7 @@ export type InputOf<S extends Shape> = z.infer<z.ZodObject<S>>;
 export type OutputOf<S extends Shape> = z.infer<z.ZodObject<S>>;
 
 /** Metadata for one tool, passed to `@tool()`. Everything here is advertised to the client. */
-export type ToolSpec<
-  Input extends InputShape = InputShape,
-  Output extends OutputShape = OutputShape,
-> = {
+export type ToolSpec<Input extends Shape = Shape, Output extends Shape = Shape> = {
   /** MCP tool name. Defaults to `<integration>_<method>`, e.g. `planetterp_get_course`. */
   name?: string;
   /** Human-readable title shown in client UIs. */
@@ -55,8 +54,8 @@ export class RegisteredTool {
     private readonly integration: Integration,
     /** The decorated method's name. */
     readonly method: string,
-    readonly spec: ToolSpec,
-    readonly handler: ToolHandler<InputOf<InputShape>>,
+    readonly spec: ToolSpec & { annotations: ToolAnnotations },
+    readonly handler: ToolHandler<InputOf<Shape>>,
   ) {}
 
   /** The MCP tool name: `spec.name`, or `<integration>_<method>`. */
@@ -81,17 +80,17 @@ type ToolDecorator<Args, Result> = <This extends Integration>(
  * or a ready-made `ToolResult`, which is passed through untouched. See `Integration` for an
  * example.
  */
-export function tool<Input extends InputShape, Output extends OutputShape>(
+export function tool<Input extends Shape, Output extends Shape>(
   spec: ToolSpec<Input, Output> & { output: Output },
 ): ToolDecorator<InputOf<Input>, OutputOf<Output>>;
-export function tool<Input extends InputShape>(
+export function tool<Input extends Shape>(
   spec: Omit<ToolSpec<Input>, 'output'>,
 ): ToolDecorator<InputOf<Input>, unknown>;
-export function tool(spec: ToolSpec): ToolDecorator<InputOf<InputShape>, unknown> {
+export function tool(spec: ToolSpec): ToolDecorator<InputOf<Shape>, unknown> {
   const outputSchema = spec.output === undefined ? undefined : z.object(spec.output);
 
   return function <This extends Integration>(
-    method: ToolMethod<This, InputOf<InputShape>, unknown>,
+    method: ToolMethod<This, InputOf<Shape>, unknown>,
     context: ClassMethodDecoratorContext<This>,
   ): void {
     context.addInitializer(function () {
@@ -187,32 +186,54 @@ export abstract class Integration {
     return connection.require();
   }
 
-  /** `fetch` for this integration: the service session's when there is one, plain otherwise. */
+  /**
+   * `fetch` for this integration: the service session's when there is one, plain otherwise.
+   * Override for an anonymous flow that still needs cookies (see `cookieFetcher`).
+   */
   protected get fetcher(): Fetcher {
-    return this.connection === undefined ? (input, init) => fetch(input, init) : this.session.fetch;
+    return this.connection === undefined ? plainFetch : this.session.fetch;
   }
 
   /** GET `path` relative to this integration's base URL and parse the JSON body. */
-  protected get<T = unknown>(path: string, query?: Query): Promise<T> {
-    return getJson<T>(this.baseUrl, path, query, this.fetcher);
+  protected async get<T = unknown>(path: string, query?: Query, init?: RequestInit): Promise<T> {
+    return getJson<T>(this.baseUrl, path, query, this.fetcher, init);
   }
 
   /** GET `path` relative to this integration's base URL and return the body as text (e.g. HTML). */
-  protected getText(path: string, query?: Query): Promise<string> {
-    return getText(this.baseUrl, path, query, this.fetcher);
+  protected async getText(path: string, query?: Query, init?: RequestInit): Promise<string> {
+    return getText(this.baseUrl, path, query, this.fetcher, init);
   }
 
   /**
    * Fetches `path` relative to this integration's base URL with any method, body or headers,
    * through the service session when there is one. Throws `HttpError` on a non-2xx status.
    */
-  protected request(path: string, query?: Query, init?: RequestInit): Promise<Response> {
+  protected async request(path: string, query?: Query, init?: RequestInit): Promise<Response> {
     return request(this.baseUrl, path, query, init, this.fetcher);
   }
 
-  /** Registers every `@tool()` method with the server. */
+  /** POSTs `fields` to `path` as a form, the way the site's own forms submit. */
+  protected async postForm(
+    path: string,
+    fields: Record<string, string> | URLSearchParams,
+    init: RequestInit = {},
+  ): Promise<Response> {
+    return this.request(path, {}, { method: 'POST', ...init, body: new URLSearchParams(fields) });
+  }
+
+  /**
+   * POSTs `body` to `path` as JSON, the way the site's own scripts call its API; `init.method`
+   * may make it a PUT or PATCH instead.
+   */
+  protected async postJson(path: string, body: unknown, init: RequestInit = {}): Promise<Response> {
+    const headers = new Headers(init.headers);
+    headers.set('content-type', 'application/json; charset=utf-8');
+    return this.request(path, {}, { method: 'POST', ...init, headers, body: JSON.stringify(body) });
+  }
+
+  /** Registers every `@tool()` method with the server, and `service` with `login`. */
   register(server: McpServer): void {
-    void this.connection; // so the next `login` signs in to `service`
+    if (this.service !== undefined) connect(this.service);
     for (const { name, spec, handler } of this.tools) {
       server.registerTool(
         name,
@@ -221,9 +242,9 @@ export abstract class Integration {
           inputSchema: spec.input,
           ...(spec.output !== undefined && { outputSchema: spec.output }),
           ...(spec.title !== undefined && { title: spec.title }),
-          ...(spec.annotations !== undefined && { annotations: spec.annotations }),
+          annotations: spec.annotations,
         },
-        async (args: InputOf<InputShape>) => {
+        async (args: InputOf<Shape>) => {
           try {
             return await handler(args);
           } catch (error) {
@@ -243,8 +264,11 @@ export abstract class Integration {
       return errorResult(`${this.name}: ${tool} failed: ${error.message}`);
     }
     if (error instanceof HttpError) {
-      const detail = error.status === 404 ? 'not found' : `HTTP ${error.status}`;
-      return errorResult(`${this.name}: ${tool} failed (${detail})`);
+      const status = error.status === 404 ? 'not found' : `HTTP ${error.status}`;
+      const reason = error.detail;
+      return errorResult(
+        `${this.name}: ${tool} failed (${status})${reason === null ? '' : `: ${reason}`}`,
+      );
     }
     if (error instanceof z.ZodError) {
       return errorResult(

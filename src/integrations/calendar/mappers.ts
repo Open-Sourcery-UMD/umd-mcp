@@ -1,4 +1,5 @@
 import { marked, type Token, type Tokens } from 'marked';
+import { member } from '../../common.js';
 import { htmlToTextOrNull } from '../../lib/html.js';
 import { collapse, lines } from '../../lib/text.js';
 import {
@@ -7,15 +8,15 @@ import {
   type Address,
   AUDIENCES,
   type Audience,
-  calendarHandle,
+  CALENDAR_HANDLES,
   type Category,
-  categoryGroup,
+  CATEGORY_GROUPS,
   type Event,
   type EventDetail,
   EVENT_TYPES,
   type EventType,
-  locationType,
-  season,
+  LOCATION_TYPES,
+  SEASONS,
 } from './schemas.js';
 
 type RawCategoryRef = { slug: string };
@@ -82,11 +83,13 @@ function toAddress(entries: RawAddress[]): Address {
   };
 }
 
-/** The declared location type, else off-campus when the event carries off-campus details. */
-function toLocationType(raw: RawEvent): Event['location']['type'] {
-  const declared = raw.locationType?.[0];
-  if (declared !== undefined) return locationType.parse(declared);
-  return raw.offCampusTitle !== null || raw.address.length > 0 ? 'off_campus' : null;
+/** The declared location types, else off-campus when the event carries off-campus details. */
+function toLocationTypes(raw: RawEvent): Event['location']['types'] {
+  const declared = raw.locationType ?? [];
+  if (declared.length > 0) {
+    return declared.map((value) => member(LOCATION_TYPES, value, 'location type'));
+  }
+  return raw.offCampusTitle !== null || raw.address.length > 0 ? ['off_campus'] : [];
 }
 
 function isEventType(slug: string): slug is EventType {
@@ -115,14 +118,14 @@ export function toEvent(raw: RawEvent): Event {
     featured: raw.featured.some((status) => status.slug === 'featured'),
     tags: raw.tags.map((tag) => tag.title),
     location: {
-      type: toLocationType(raw),
+      types: toLocationTypes(raw),
       venue: htmlToTextOrNull(raw.venue),
       off_campus_name: raw.offCampusTitle,
       off_campus_url: raw.offCampusLink,
       address: toAddress(raw.address),
     },
     contact: { name: raw.contactName, phone: raw.contactPhone, email: raw.contactEmail },
-    calendar: calendarHandle.parse(raw.calendar.handle),
+    calendar: member(CALENDAR_HANDLES, raw.calendar.handle, 'calendar'),
   };
 }
 
@@ -152,7 +155,7 @@ export function toCategory(raw: RawCategory): Category {
     id: Number(raw.id),
     title: raw.title,
     slug: raw.slug,
-    group: categoryGroup.parse(raw.groupHandle),
+    group: member(CATEGORY_GROUPS, raw.groupHandle, 'category group'),
   };
 }
 
@@ -195,7 +198,7 @@ export function parseAcademicCalendar(markdown: string): AcademicYear[] {
         years.push(year);
       }
       events = [];
-      year.seasons.push({ season: season.parse(caption[2]?.toLowerCase()), events });
+      year.seasons.push({ season: member(SEASONS, caption[2]?.toLowerCase(), 'season'), events });
       expect = 'event';
       continue;
     }

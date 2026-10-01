@@ -79,11 +79,13 @@ export class Calendar extends Integration {
     limit: number;
     offset: number;
   }): Promise<{ total: number; events: Event[] }> {
-    const related = [
+    const ids = [
       event_type === undefined ? [] : [EVENT_TYPES[event_type]],
       audienceSlug === undefined ? [] : [AUDIENCES[audienceSlug]],
       featured === true ? [FEATURED_CATEGORY_ID] : [],
     ].flat();
+    // Craft ORs a plain list of ids; every filter given must hold, so they are ANDed.
+    const related = ids.length > 1 ? ['and', ...ids] : ids;
     const data = await query<{ solspace_calendar: { eventCount: number; events: RawEvent[] } }>(
       searchDocument(end !== undefined),
       {

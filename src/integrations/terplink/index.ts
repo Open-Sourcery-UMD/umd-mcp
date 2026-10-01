@@ -1,9 +1,9 @@
 import { TZDate } from '@date-fns/tz';
-import { format } from 'date-fns';
+import { addDays, format } from 'date-fns';
 import { invert } from 'lodash-es';
-import { stringify } from 'qs';
 import { z } from 'zod';
 import { CAMPUS_TIME_ZONE, decode, isoDate } from '../../common.js';
+import type { Query } from '../../lib/http.js';
 import { Integration, tool } from '../base.js';
 import {
   type Page,
@@ -46,6 +46,7 @@ import {
   type OrganizationSearch,
   organizationSchema,
   organizationSearchSchema,
+  PAGE_SIZE,
   paging,
   searchQuery,
   type ServiceOpportunitySearch,
@@ -63,9 +64,30 @@ function localStart(date: string): string {
   return format(new TZDate(`${date}T00:00:00`, CAMPUS_TIME_ZONE), TIMESTAMP_FORMAT);
 }
 
+/** Midnight at the end of `date` in College Park, i.e. the start of the following day. */
+function localEnd(date: string): string {
+  return format(addDays(new TZDate(`${date}T00:00:00`, CAMPUS_TIME_ZONE), 1), TIMESTAMP_FORMAT);
+}
+
 export class TerpLink extends Integration {
   readonly name = 'terplink';
   readonly baseUrl = 'https://terplink.umd.edu/api/discovery';
+
+  /** Every item of a plain REST list, paged through `take`/`skip` until `totalItems` are in hand. */
+  private async allItems<T>(path: string, query: Query): Promise<T[]> {
+    const items: T[] = [];
+    let total = 0;
+    do {
+      const page = await this.get<Page<T>>(path, { ...query, take: PAGE_SIZE, skip: items.length });
+      if (page.items.length === 0) break;
+      items.push(...page.items);
+      total = page.totalItems;
+    } while (items.length < total);
+    if (items.length < total) {
+      throw new Error(`${this.name}: ${path} returned ${items.length} of ${total} items`);
+    }
+    return items;
+  }
 
   @tool({
     title: 'Search organizations',
@@ -114,7 +136,13 @@ export class TerpLink extends Integration {
     const path = /^\d+$/.test(organization)
       ? `organization/${organization}`
       : `organization/bykey/${encodeURIComponent(organization)}`;
-    return toOrganization(await this.get<RawOrganization>(path));
+    const raw = await this.get<RawOrganization>(path);
+    // The detail endpoint leaves `categories` empty; the search index has them.
+    const page = await this.get<SearchPage<RawOrganizationSearch>>('search/organizations', {
+      top: 1,
+      filter: `Id eq '${raw.id}'`,
+    });
+    return toOrganization(raw, page.value[0]);
   }
 
   @tool({
@@ -125,11 +153,10 @@ export class TerpLink extends Integration {
     output: { categories: z.array(categorySchema).describe('Categories in name order') },
   })
   async list_organization_categories(): Promise<{ categories: Category[] }> {
-    const page = await this.get<Page<RawCategory>>('organization/category', {
-      take: 100,
+    const items = await this.allItems<RawCategory>('organization/category', {
       orderByField: 'name',
     });
-    return { categories: page.items.map(toCategory) };
+    return { categories: items.map(toCategory) };
   }
 
   @tool({
@@ -139,7 +166,7 @@ export class TerpLink extends Integration {
     input: {
       query: searchQuery('name or description'),
       starts_after: isoDate.optional().describe('Only events starting on or after this date'),
-      ends_before: isoDate.optional().describe('Only events ending before this date'),
+      ends_before: isoDate.optional().describe('Only events ending on or before this date'),
       include_past: z
         .boolean()
         .default(false)
@@ -183,26 +210,22 @@ export class TerpLink extends Integration {
     limit: number;
     offset: number;
   }): Promise<EventSearch> {
-    // The API wants multi-valued filters as repeated keys, which `this.get`'s query cannot express.
-    const search = stringify(
-      {
-        take: limit,
-        skip: offset,
-        query,
-        endsAfter: include_past ? undefined : format(TZDate.tz(CAMPUS_TIME_ZONE), TIMESTAMP_FORMAT),
-        startsAfter: starts_after === undefined ? undefined : localStart(starts_after),
-        endsBefore: ends_before === undefined ? undefined : localStart(ends_before),
-        orderByField: 'endsOn',
-        orderByDirection: 'ascending',
-        status: 'Approved',
-        organizationIds: organization_ids,
-        categoryIds: category_ids,
-        themes,
-        benefitNames: benefits?.map((benefit) => decode(BENEFIT_CODES, benefit, 'event benefit')),
-      },
-      { arrayFormat: 'repeat', skipNulls: true },
-    );
-    const page = await this.get<SearchPage<RawEventSearch>>(`event/search?${search}`);
+    // Multi-valued filters go as repeated keys, which an array query value produces.
+    const page = await this.get<SearchPage<RawEventSearch>>('event/search', {
+      take: limit,
+      skip: offset,
+      query,
+      endsAfter: include_past ? undefined : format(TZDate.tz(CAMPUS_TIME_ZONE), TIMESTAMP_FORMAT),
+      startsAfter: starts_after === undefined ? undefined : localStart(starts_after),
+      endsBefore: ends_before === undefined ? undefined : localEnd(ends_before),
+      orderByField: 'endsOn',
+      orderByDirection: 'ascending',
+      status: 'Approved',
+      organizationIds: organization_ids,
+      categoryIds: category_ids,
+      themes,
+      benefitNames: benefits?.map((benefit) => decode(BENEFIT_CODES, benefit, 'event benefit')),
+    });
     return { total: page['@odata.count'], events: page.value.map(toEventSummary) };
   }
 
@@ -227,8 +250,7 @@ export class TerpLink extends Integration {
     output: { categories: z.array(categorySchema).describe('Categories as the site orders them') },
   })
   async list_event_categories(): Promise<{ categories: Category[] }> {
-    const page = await this.get<Page<RawCategory>>('category', { take: 100 });
-    return { categories: page.items.map(toCategory) };
+    return { categories: (await this.allItems<RawCategory>('category', {})).map(toCategory) };
   }
 
   @tool({

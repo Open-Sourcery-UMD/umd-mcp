@@ -19,4 +19,17 @@ export class AuthRequiredError extends Error {
     super(message);
     this.name = 'AuthRequiredError';
   }
+
+  /** The user has not signed in to `service` yet. */
+  static notSignedIn(service: string): AuthRequiredError {
+    return new AuthRequiredError(`Not signed in to ${service}. Call the \`login\` tool first.`);
+  }
+
+  /** `service` stopped accepting the session, for `reason` when one is known. */
+  static expired(service: string, reason?: string): AuthRequiredError {
+    const why = reason === undefined ? '' : ` (${reason})`;
+    return new AuthRequiredError(
+      `The ${service} session has expired${why}. Call the \`login\` tool to sign in again.`,
+    );
+  }
 }

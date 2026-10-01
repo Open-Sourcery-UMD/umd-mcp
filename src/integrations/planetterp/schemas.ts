@@ -1,14 +1,23 @@
+import { uniq } from 'lodash-es';
 import { z } from 'zod';
 import { courseId, departmentCode, term } from '../../common.js';
 
 export const PROFESSOR_TYPES = ['professor', 'ta'] as const;
 
-/** PlanetTerp records section numbers without leading zeros: Testudo's 0101 is its "101". */
+/**
+ * PlanetTerp stores sections as Testudo prints them ("0101") through Spring 2022 and without
+ * the leading zero ("101") from Fall 2022 on; the tools query both spellings.
+ */
 export const sectionNumber = z
   .string()
   .trim()
-  .regex(/^[A-Za-z0-9]{1,4}$/, 'Expected a section number like 101')
-  .describe('Section number as PlanetTerp records it, without leading zeros, e.g. "101" for 0101');
+  .regex(/^[A-Za-z0-9]{1,4}$/, 'Expected a section number like 0101')
+  .describe('Section number, e.g. "0101" or "101"; both spellings find the same section');
+
+/** Both spellings of a section number, "101" and "0101", without repeats. */
+export function sectionSpellings(section: string): string[] {
+  return uniq([section.replace(/^0+(?=\d)/, ''), section.padStart(4, '0')]);
+}
 
 export const professorType = z.enum(PROFESSOR_TYPES);
 
@@ -17,13 +26,13 @@ export const reviewSchema = z.object({
   course: courseId
     .nullable()
     .describe(
-      'Course code the review was written for, e.g. "CMSC131"; null if it was not tied to a course',
+      'Course code the review was written for, e.g. "CMSC131"; null when it was not tied to a course',
     ),
   review: z.string().describe('Full text of the student review'),
   rating: z.number().int().min(1).max(5).describe('Star rating the student gave, from 1 to 5'),
   expected_grade: z
     .string()
-    .describe('Grade the student expected, e.g. "A", "B+"; empty string if not given'),
+    .describe('Grade the student expected, e.g. "A", "B+"; empty string when not given'),
   created: z.string().describe('When the review was posted, as an ISO 8601 timestamp'),
 });
 
@@ -34,20 +43,22 @@ export const courseSchema = z.object({
   title: z
     .string()
     .nullable()
-    .describe('Course title, e.g. "Object-Oriented Programming I"; null if unknown'),
+    .describe('Course title, e.g. "Object-Oriented Programming I"; null when unknown'),
   credits: z
     .number()
     .int()
     .nullable()
-    .describe('Number of credits the course is worth; null if unknown'),
+    .describe('Number of credits the course is worth; null when unknown'),
   description: z
     .string()
     .nullable()
-    .describe('Catalog description of the course, which may contain HTML tags; null if none'),
+    .describe('Catalog description of the course, which may contain HTML tags; null when none'),
   average_gpa: z
     .number()
     .nullable()
-    .describe('Average GPA across all recorded sections, on a 4.0 scale; null if no grade data'),
+    .describe(
+      'Average GPA across all recorded sections, on a 4.0 scale; null when there is no grade data',
+    ),
   professors: z
     .array(z.string())
     .describe(
@@ -64,7 +75,7 @@ export const professorSchema = z.object({
       "PlanetTerp's unique identifier for the professor; their page is https://planetterp.com/professor/<slug>",
     ),
   type: professorType.describe(
-    '"ta" if this person is a teaching assistant, "professor" otherwise',
+    '"ta" when this person is a teaching assistant, "professor" otherwise',
   ),
   courses: z
     .array(courseId)
@@ -72,7 +83,7 @@ export const professorSchema = z.object({
   average_rating: z
     .number()
     .nullable()
-    .describe('Average student rating, on a 1-5 scale; null if the professor has no reviews'),
+    .describe('Average student rating, on a 1-5 scale; null when the professor has no reviews'),
   reviews: z.array(reviewSchema).describe('Student reviews of this professor'),
 });
 
@@ -81,9 +92,16 @@ const gradeCount = (grade: string) =>
 
 export const gradesSchema = z.object({
   course: courseId,
-  professor: z.string().describe('Name of the professor who taught the section'),
+  professor: z
+    .string()
+    .nullable()
+    .describe(
+      'Name of the professor who taught the section; null when PlanetTerp has none on record',
+    ),
   semester: term,
-  section: sectionNumber,
+  section: sectionNumber.describe(
+    'Section number as PlanetTerp recorded it: "0101" through Spring 2022, "101" from Fall 2022',
+  ),
   'A+': gradeCount('an A+'),
   A: gradeCount('an A'),
   'A-': gradeCount('an A-'),

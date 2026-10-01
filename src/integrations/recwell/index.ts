@@ -55,7 +55,7 @@ export class RecWell extends Integration {
   @tool({
     title: 'Get a facility',
     description:
-      "A RecWell facility's page: description, regular hours of operation per season (one tab per semester, as tables), access rules, rental and parking information. For today's actual hours use get_facility_hours. No login needed.",
+      "A RecWell facility's page: description, regular hours of operation per season (one tab per semester, as tables), access rules, rental and parking information. Holiday hours and closures are in recwell_get_facility_alerts. No login needed.",
     input: { facility: facilityKey },
     output: pageSchema.shape,
   })

@@ -1,7 +1,6 @@
-import makeFetchCookie from 'fetch-cookie';
-import { CookieJar } from 'tough-cookie';
 import { z } from 'zod';
-import { type Fetcher, request } from '../../lib/http.js';
+import { AuthRequiredError } from '../../lib/errors.js';
+import { cookieFetcher, type Fetcher, request } from '../../lib/http.js';
 import { Integration, tool } from '../base.js';
 import { parseResults } from './parsers.js';
 import {
@@ -21,7 +20,7 @@ import {
 const ORIGIN = 'https://identity.umd.edu';
 
 /** Fetch with a cookie jar for anonymous searches; the directory needs a JSESSIONID to search. */
-const anonymousFetch: Fetcher = makeFetchCookie(fetch, new CookieJar());
+const anonymousFetch = cookieFetcher();
 
 const HTML = { accept: 'text/html' };
 
@@ -42,31 +41,46 @@ export class Directory extends Integration {
 
   /** Whether a signed-in directory session is live (students are searchable then). */
   private get signedIn(): boolean {
-    const session = this.connection?.session;
-    return session !== undefined && !session.expired;
-  }
-
-  /** A request to `/search` through the signed-in session when there is one, else anonymously. */
-  private searchRequest(init: RequestInit): Promise<Response> {
-    return this.signedIn
-      ? this.request('search', {}, init)
-      : request(this.baseUrl, 'search', {}, init, anonymousFetch);
+    return this.connection?.live === true;
   }
 
   /**
-   * Runs one search: a GET to (re)establish the session cookie, then the form POST, whose
-   * 302 back to `/search` is followed and renders the results held in the session.
+   * Runs one search through `fetcher`: a GET to (re)establish the session cookie, then the
+   * form POST, whose 302 back to `/search` is followed and renders the results held in the
+   * session.
+   */
+  private async searchWith(fetcher: Fetcher, form: URLSearchParams): Promise<SearchResults> {
+    await request(this.baseUrl, 'search', {}, { headers: HTML }, fetcher);
+    const res = await request(
+      this.baseUrl,
+      'search',
+      {},
+      { method: 'POST', body: form, headers: HTML },
+      fetcher,
+    );
+    return parseResults(await res.text());
+  }
+
+  /**
+   * Runs one search through the signed-in session when there is one, else anonymously. The
+   * tools work without login, so a session the directory has stopped accepting falls back to
+   * the anonymous search instead of asking for `login`.
    */
   private async runSearch(form: URLSearchParams): Promise<SearchResults> {
-    await this.searchRequest({ headers: HTML });
-    const res = await this.searchRequest({ method: 'POST', body: form, headers: HTML });
-    return parseResults(await res.text());
+    if (this.signedIn) {
+      try {
+        return await this.searchWith(this.fetcher, form);
+      } catch (error) {
+        if (!(error instanceof AuthRequiredError)) throw error;
+      }
+    }
+    return this.searchWith(anonymousFetch, form);
   }
 
   @tool({
     title: 'Search the directory',
     description:
-      'Search the UMD campus directory for people by last name (prefix; "Pin*" wildcards work), full name, email address, Directory ID or phone number. No login needed for faculty, staff and affiliates (at most 50 results); after login students are included and up to 100 are returned.',
+      'Search the UMD campus directory for people by last name (prefix; "Pin*" wildcards work), full name, email address, Directory ID or phone number. Faculty, staff and affiliates are always searchable, at most 50 results; students appear only after login, which also raises the cap to 100. No login needed.',
     input: {
       query: z
         .string()
@@ -99,7 +113,7 @@ export class Directory extends Integration {
   @tool({
     title: 'Advanced directory search',
     description:
-      'Search the UMD campus directory by separate name parts, email, work phone, department, affiliation and institution. At least one of the name, email or phone fields is required; department only narrows another field. No login needed for faculty, staff and affiliates; students are only included after login.',
+      'Search the UMD campus directory by separate name parts, email, work phone, department, affiliation and institution. At least one of the name, email or phone fields is required; department only narrows another field. Students appear only after login. No login needed.',
     input: {
       first_name: searchText.describe('First name'),
       middle_name: searchText.describe('Middle name'),
@@ -170,7 +184,7 @@ export class Directory extends Integration {
   @tool({
     title: 'Get a person',
     description:
-      'Look up one person in the UMD campus directory by Directory ID (the part of their email before @umd.edu). No login needed for faculty, staff and affiliates; students are only found after login.',
+      'Look up one person in the UMD campus directory by Directory ID (the part of their email before @umd.edu). Students appear only after login. No login needed.',
     input: { directory_id: directoryId },
     output: {
       person: personSchema
@@ -183,10 +197,13 @@ export class Directory extends Integration {
       query: `${directory_id}@umd.edu`,
       sounds_like: false,
     });
+    // An email search is exact, so a lone result without a published @umd.edu address is
+    // still the person asked for; several results mean the id did not match anyone.
+    const { people } = results;
     return {
       person:
-        results.people.find((person) => person.directory_id === directory_id) ??
-        results.people[0] ??
+        people.find((person) => person.directory_id === directory_id) ??
+        (people.length === 1 ? people[0] : undefined) ??
         null,
     };
   }

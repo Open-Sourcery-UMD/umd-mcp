@@ -1,6 +1,6 @@
 import Parser from 'rss-parser';
 import { z } from 'zod';
-import { limit } from '../../common.js';
+import { getJson, HttpError } from '../../lib/http.js';
 import { Integration, tool } from '../base.js';
 import { parseDiningCalendar, toBusyMeter, toNewsItem } from './parsers.js';
 import {
@@ -12,7 +12,9 @@ import {
   newsItemSchema,
 } from './schemas.js';
 
-const BUSY_METER_URL = 'https://dsa-ws01.umd.edu/DiningBusyMeter/get.json';
+/** The service behind the "Dining Hall Status" page, on a separate host from the dining site. */
+const BUSY_METER_ORIGIN = 'https://dsa-ws01.umd.edu';
+const BUSY_METER_PATH = 'DiningBusyMeter/get.json';
 
 const rss = new Parser();
 
@@ -30,12 +32,17 @@ export class Dining extends Integration {
   async get_busy_meter(): Promise<BusyMeter> {
     const unavailable = (reason: string): BusyMeter => ({ available: false, reason, halls: [] });
     try {
-      const res = await fetch(BUSY_METER_URL, { headers: { accept: 'application/json' } });
-      if (!res.ok) return unavailable(`The busy meter service responded with HTTP ${res.status}`);
-      return toBusyMeter(await res.json());
+      return toBusyMeter(await getJson(BUSY_METER_ORIGIN, BUSY_METER_PATH));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return unavailable(`The busy meter service could not be read: ${message}`);
+      // A non-2xx answer, an unreachable host or a non-JSON body all mean the service is
+      // down, which the tool reports as data rather than as a failure.
+      if (error instanceof HttpError) {
+        return unavailable(`The busy meter service responded with HTTP ${error.status}`);
+      }
+      if (error instanceof Error) {
+        return unavailable(`The busy meter service could not be read: ${error.message}`);
+      }
+      throw error;
     }
   }
 
@@ -54,11 +61,11 @@ export class Dining extends Integration {
     title: 'Get dining news',
     description:
       'The newest posts on dining.umd.edu, mainly "The Dish" monthly newsletter, from its RSS feed. No login needed.',
-    input: { limit: limit(10, 10) },
-    output: { items: z.array(newsItemSchema).describe('Newest first') },
+    input: {},
+    output: { items: z.array(newsItemSchema).describe('Newest first; the feed carries ten') },
   })
-  async get_news({ limit: max }: { limit: number }): Promise<{ items: NewsItem[] }> {
+  async get_news(): Promise<{ items: NewsItem[] }> {
     const feed = await rss.parseString(await this.getText('rss.xml'));
-    return { items: feed.items.slice(0, max).map(toNewsItem) };
+    return { items: feed.items.map(toNewsItem) };
   }
 }

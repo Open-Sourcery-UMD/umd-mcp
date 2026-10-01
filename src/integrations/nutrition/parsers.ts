@@ -1,11 +1,21 @@
 import * as cheerio from 'cheerio';
 import type { CheerioAPI } from 'cheerio';
 import { format, parseISO } from 'date-fns';
-import { lowerCase } from 'lodash-es';
 import splitString from 'split-string';
-import { collapse } from '../../lib/text.js';
+import { decode } from '../../common.js';
 import { type Selection, text } from '../../lib/scrape.js';
-import type { Meal, MenuItem, Nutrient, Recipe, Station } from './schemas.js';
+import { collapse, numeric } from '../../lib/text.js';
+import {
+  ALLERGENS,
+  type Allergen,
+  DIETARY_LABELS,
+  type DietaryLabel,
+  type Meal,
+  type MenuItem,
+  type Nutrient,
+  type Recipe,
+  type Station,
+} from './schemas.js';
 
 /** split-string's types declare a default export that its CommonJS build does not have. */
 const split = splitString as unknown as typeof splitString.default;
@@ -18,20 +28,21 @@ export function toSiteDate(date: string): string {
 /**
  * Parses one dish row. The dish name links to its nutrition label, whose query string carries
  * the recipe id. Each icon's alt text reads either "Contains <allergen>" or a dietary label,
- * in the site's "pea_protein" / "HalalFriendly" spellings, which `lowerCase` turns into words.
+ * in the site's "pea_protein" / "HalalFriendly" spellings.
  */
 function parseItem($: CheerioAPI, row: Selection): MenuItem {
   const link = row.find('a.menu-item-name');
   const href = link.attr('href') ?? '';
   const id = new URLSearchParams(href.split('?')[1]).get('RecNumAndPort') ?? '';
 
-  const allergens: string[] = [];
-  const labels: string[] = [];
+  const allergens: Allergen[] = [];
+  const labels: DietaryLabel[] = [];
   for (const icon of row.find('img.nutri-icon').toArray()) {
     const alt = $(icon).attr('alt')?.trim() ?? '';
     const allergen = /^contains\s+(.+)$/i.exec(alt)?.[1];
-    if (allergen !== undefined) allergens.push(lowerCase(allergen));
-    else if (alt !== '') labels.push(lowerCase(alt));
+    if (allergen !== undefined)
+      allergens.push(decode(ALLERGENS, allergen.toLowerCase(), 'allergen'));
+    else if (alt !== '') labels.push(decode(DIETARY_LABELS, alt.toLowerCase(), 'dietary label'));
   }
 
   return { name: text(link), id, allergens, labels };
@@ -139,11 +150,15 @@ export function parseRecipe(html: string, id: string): Recipe | undefined {
   const $ = cheerio.load(html);
   const name = text($('h1'));
   if ($('table.facts_table').length === 0 || name.startsWith('Missing Recipe')) return undefined;
+  const calories = numeric(text($('.facts_table p:contains("Calories per serving") + p')));
+  if (calories === null) {
+    throw new Error(`nutrition: no calorie count on the label for "${id}"`);
+  }
   return {
     id,
     name,
     serving_size: text($('.nutfactsservsize:last')),
-    calories: Number(text($('.facts_table p:contains("Calories per serving") + p'))),
+    calories,
     nutrients: parseNutrients($),
     ingredients: splitTopLevel(text($('.labelingredientsvalue'))),
     allergens: splitTopLevel(text($('.labelallergensvalue'))).map((a) => a.toLowerCase()),

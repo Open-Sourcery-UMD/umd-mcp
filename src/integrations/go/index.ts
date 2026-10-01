@@ -1,8 +1,8 @@
 import { escapeRegExp } from 'lodash-es';
 import { z } from 'zod';
 import { pagination } from '../../common.js';
-import type { Session } from '../../lib/auth.js';
 import { getJson, HttpError } from '../../lib/http.js';
+import { perSession } from '../../lib/session.js';
 import { Integration, tool, type ToolResult } from '../base.js';
 import { type LinkQuery, linkTableQuery } from './datatable.js';
 import {
@@ -55,8 +55,14 @@ import {
 const JS = 'text/javascript';
 const JSON_TYPE = 'application/json';
 
-/** A request body: JSON, or a form as the site's own forms post it. */
-type Body = { json: unknown } | { form: URLSearchParams };
+/**
+ * A non-GET request as the site's pages make them: a form POST, a JSON POST or PATCH, or a
+ * DELETE without a body.
+ */
+type Send =
+  | { method: 'POST'; form: URLSearchParams }
+  | { method: 'POST' | 'PATCH'; json: unknown }
+  | { method: 'DELETE' };
 
 /**
  * go.umd.edu is UMD's deployment of Z, the University of Minnesota's Rails link shortener.
@@ -79,15 +85,12 @@ export class Go extends Integration {
     signInPage: (url: URL) => url.pathname === '/shortener/signin',
   };
 
-  private csrf: { session: Session; token: string } | undefined;
-
   /** The CSRF token Rails expects on non-GET requests, read from the links page once per session. */
-  private async csrfToken(): Promise<string> {
-    const session = this.session;
-    if (this.csrf?.session !== session) {
-      this.csrf = { session, token: parseCsrfToken(await this.getText('urls')) };
-    }
-    return this.csrf.token;
+  private csrfToken = this.csrfTokens();
+
+  /** A fresh per-session memo of the CSRF token; replaced when the site rejects a token. */
+  private csrfTokens() {
+    return perSession(async () => parseCsrfToken(await this.getText('urls')));
   }
 
   /**
@@ -95,27 +98,19 @@ export class Go extends Integration {
    * server's validation messages; one without any (Rails' answer to a stale token) is
    * retried once with a fresh token.
    */
-  private async send(
-    method: 'POST' | 'PATCH' | 'DELETE',
-    path: string,
-    body: Body | undefined,
-    accept: string,
-    retried = false,
-  ): Promise<Response> {
-    const headers: Record<string, string> = {
-      accept,
-      'x-csrf-token': await this.csrfToken(),
-      'x-requested-with': 'XMLHttpRequest',
+  private async send(path: string, how: Send, accept: string, retried = false): Promise<Response> {
+    const init: RequestInit = {
+      headers: {
+        accept,
+        'x-csrf-token': await this.csrfToken(this.session),
+        'x-requested-with': 'XMLHttpRequest',
+      },
     };
-    const init: RequestInit = { method, headers };
-    if (body !== undefined && 'json' in body) {
-      headers['content-type'] = JSON_TYPE;
-      init.body = JSON.stringify(body.json);
-    } else if (body !== undefined) {
-      init.body = body.form;
-    }
     try {
-      return await this.request(path, {}, init);
+      if ('form' in how) return await this.postForm(path, how.form, init);
+      if ('json' in how)
+        return await this.postJson(path, how.json, { ...init, method: how.method });
+      return await this.request(path, {}, { ...init, method: how.method });
     } catch (error) {
       if (!(error instanceof HttpError) || error.status !== 422) throw error;
       const messages = describeErrors(error.body);
@@ -124,8 +119,8 @@ export class Go extends Integration {
           cause: error,
         });
       }
-      this.csrf = undefined;
-      return this.send(method, path, body, accept, true);
+      this.csrfToken = this.csrfTokens();
+      return this.send(path, how, accept, true);
     }
   }
 
@@ -176,15 +171,11 @@ export class Go extends Integration {
   }
 
   /**
-   * Posts to an endpoint that answers success with a redirect to the links page and failure
+   * Calls an endpoint that answers success with a redirect to the links page and failure
    * by re-rendering its form. Returns the validation message, or null on success.
    */
-  private async sendForm(
-    method: 'POST' | 'DELETE',
-    path: string,
-    form: URLSearchParams,
-  ): Promise<string | null> {
-    const res = await this.send(method, path, { form }, JS);
+  private async sendForm(path: string, how: Send): Promise<string | null> {
+    const res = await this.send(path, how, JS);
     if (new URL(res.url).pathname === '/shortener/urls') return null;
     return parseJsErrors(await res.text()) ?? 'the request was rejected';
   }
@@ -271,7 +262,7 @@ export class Go extends Integration {
   }): Promise<Link> {
     const form = new URLSearchParams({ 'url[url]': url, 'url[keyword]': wanted ?? '' });
     if (collection !== undefined) form.set('url[group_id]', String(collection));
-    const res = await this.send('POST', 'urls', { form }, JS);
+    const res = await this.send('urls', { method: 'POST', form }, JS);
     const js = await res.text();
     const created = parseCreatedKeyword(js);
     if (created === null) {
@@ -314,7 +305,7 @@ export class Go extends Integration {
     }
     const link = await this.findLink(keyword);
     const changes = { url, keyword: new_keyword, group_id: collection, note };
-    await this.send('PATCH', `urls/${link.id}`, { json: { url: changes } }, JSON_TYPE);
+    await this.send(`urls/${link.id}`, { method: 'PATCH', json: { url: changes } }, JSON_TYPE);
     return this.findLink(new_keyword ?? keyword);
   }
 
@@ -328,7 +319,7 @@ export class Go extends Integration {
   })
   async delete_link({ keyword }: { keyword: string }): Promise<Link> {
     const link = await this.findLink(keyword);
-    await this.send('DELETE', `urls/${link.id}`, undefined, JSON_TYPE);
+    await this.send(`urls/${link.id}`, { method: 'DELETE' }, JSON_TYPE);
     return link;
   }
 
@@ -387,7 +378,7 @@ export class Go extends Integration {
     description?: string | undefined;
   }): Promise<Collection> {
     const group = { name, description: description ?? '' };
-    const res = await this.send('POST', 'groups', { json: { group } }, JSON_TYPE);
+    const res = await this.send('groups', { method: 'POST', json: { group } }, JSON_TYPE);
     const { id } = (await res.json()) as RawGroup;
     return this.findCollection(id);
   }
@@ -417,7 +408,7 @@ export class Go extends Integration {
       throw new Error(`${this.name}: go_update_collection needs a name or a description`);
     }
     const group = { name, description };
-    await this.send('PATCH', `groups/${collection}`, { json: { group } }, JSON_TYPE);
+    await this.send(`groups/${collection}`, { method: 'PATCH', json: { group } }, JSON_TYPE);
     return this.findCollection(collection);
   }
 
@@ -431,7 +422,7 @@ export class Go extends Integration {
   })
   async delete_collection({ collection }: { collection: number }): Promise<Collection> {
     const found = await this.findCollection(collection);
-    const res = await this.send('DELETE', `groups/${collection}`, undefined, JSON_TYPE);
+    const res = await this.send(`groups/${collection}`, { method: 'DELETE' }, JSON_TYPE);
     // The site answers with an empty 204 instead of deleting when links remain.
     if (res.status === 204) {
       throw new Error(
@@ -472,9 +463,8 @@ export class Go extends Integration {
     uid: string;
   }): Promise<Member> {
     const res = await this.send(
-      'POST',
       `groups/${collection}/members`,
-      { json: { uid } },
+      { method: 'POST', json: { uid } },
       JSON_TYPE,
     );
     return toMember((await res.json()) as RawMember);
@@ -499,7 +489,7 @@ export class Go extends Integration {
     if (member === undefined) {
       throw new Error(`${this.name}: no member ${user} in collection ${collection}`);
     }
-    await this.send('DELETE', `groups/${collection}/members/${user}`, undefined, JSON_TYPE);
+    await this.send(`groups/${collection}/members/${user}`, { method: 'DELETE' }, JSON_TYPE);
     return member;
   }
 
@@ -513,6 +503,8 @@ export class Go extends Integration {
     output: { users: z.array(userSchema).describe('Matching people') },
   })
   async lookup_users({ query }: { query: string }): Promise<{ users: User[] }> {
+    // The one endpoint under /shortener the site serves anonymously, so it is called with a
+    // plain fetch; should that change, `getJson` reports the sign-in page as not JSON.
     const hits = await getJson<RawUser[]>(this.baseUrl, 'lookup_users', { search_terms: query });
     return { users: hits.map(toUser) };
   }
@@ -566,7 +558,7 @@ export class Go extends Integration {
     }
     const form = new URLSearchParams({ 'transfer_request[to_group]': to });
     for (const k of keywords) form.append('keywords[]', k);
-    const error = await this.sendForm('POST', 'transfer_requests', form);
+    const error = await this.sendForm('transfer_requests', { method: 'POST', form });
     if (error !== null) throw new Error(`${this.name}: ${error}`);
     const wanted = new Set(keywords.map((k) => k.toLowerCase()));
     const { outgoing } = parseTransferRequests(await this.getText('urls'));
@@ -581,12 +573,12 @@ export class Go extends Integration {
   /** Answers a pending transfer request and returns it with the outcome. */
   private async answerTransferRequest(
     id: number,
-    method: 'POST' | 'DELETE',
     path: string,
+    how: Send,
     outcome: TransferOutcome,
   ): Promise<TransferRequest & { outcome: TransferOutcome }> {
     const found = await this.findTransferRequest(id);
-    const error = await this.sendForm(method, path, new URLSearchParams());
+    const error = await this.sendForm(path, how);
     if (error !== null) throw new Error(`${this.name}: ${error}`);
     return { ...found, outcome };
   }
@@ -606,8 +598,8 @@ export class Go extends Integration {
   }): Promise<TransferRequest & { outcome: TransferOutcome }> {
     return this.answerTransferRequest(
       request,
-      'POST',
       `transfer_requests/${request}/confirm`,
+      { method: 'POST', form: new URLSearchParams() },
       'approved',
     );
   }
@@ -627,8 +619,8 @@ export class Go extends Integration {
   }): Promise<TransferRequest & { outcome: TransferOutcome }> {
     return this.answerTransferRequest(
       request,
-      'DELETE',
       `transfer_requests/${request}`,
+      { method: 'DELETE' },
       'rejected',
     );
   }

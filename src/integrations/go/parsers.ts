@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 import type { CheerioAPI } from 'cheerio';
-import { format, isValid, parse } from 'date-fns';
 import { startCase } from 'lodash-es';
+import { isoDateFrom } from '../../lib/dates.js';
 import { type Selection, text, textOrNull } from '../../lib/scrape.js';
 import { numeric, trimmed } from '../../lib/text.js';
 import {
@@ -73,11 +73,16 @@ export type RawUser = {
 /** The name the site gives a user's personal space, which is a collection without a name. */
 const NO_COLLECTION = 'No Collection';
 
-/** Converts a printed date ("03/01/2026" by default) into "2026-03-01". */
+/** Converts a printed date ("03/01/2026" by default) into "2026-03-01"; throws on anything else. */
 function parseDate(value: string, pattern = 'MM/dd/yyyy'): string {
-  const date = parse(value.trim(), pattern, new Date(0));
-  if (!isValid(date)) throw new Error(`go: unexpected date "${value}"`);
-  return format(date, 'yyyy-MM-dd');
+  const date = isoDateFrom(value, pattern);
+  if (date === null) throw new Error(`go: unexpected date "${value}"`);
+  return date;
+}
+
+/** A click count as the site prints it ("1,234"), as a number; 0 when there is none. */
+function clickCount(value: string | null | undefined): number {
+  return numeric(value?.replace(/,/g, '')) ?? 0;
 }
 
 function collectionName(name: string | null): string | null {
@@ -109,16 +114,16 @@ export function toLink(row: RawLinkRow): Link {
     collection: collectionName(
       textOrNull(cheerio.load(row.group_name)('option[selected]').first()),
     ),
-    total_clicks: numeric(fragmentText(row.total_clicks)) ?? 0,
+    total_clicks: clickCount(fragmentText(row.total_clicks)),
     created: parseDate(row.created_at),
   };
 }
 
 /** The `[label, count]` rows of the Google Charts table the chart function `fn` draws. */
 function chartRows(html: string, fn: string): LinkStats['clicks_by_hour'] {
-  const literal = new RegExp(`function ${fn}\\(\\)[\\s\\S]*?DataTable\\((\\{.*\\})\\);`).exec(
-    html,
-  )?.[1];
+  const literal = new RegExp(
+    `function ${fn}\\(\\)[\\s\\S]*?DataTable\\((\\{[\\s\\S]*?\\})\\);`,
+  ).exec(html)?.[1];
   if (literal === undefined) throw new Error(`go: the stats page has no ${fn} chart`);
   const table = JSON.parse(literal) as { rows: { c: { v: string | number | null }[] }[] };
   return table.rows.map(({ c }) => ({
@@ -129,7 +134,7 @@ function chartRows(html: string, fn: string): LinkStats['clicks_by_hour'] {
 
 /** The `[country, count]` rows of the traffic location charts, header row dropped. */
 function countryRows(html: string): LinkStats['clicks_by_country'] {
-  const literal = /arrayToDataTable\((\[.*\])\);/.exec(html)?.[1];
+  const literal = /arrayToDataTable\((\[[\s\S]*?\])\);/.exec(html)?.[1];
   if (literal === undefined) throw new Error('go: the stats page has no traffic location chart');
   const rows = JSON.parse(literal) as [string | null, number][];
   return rows.slice(1).map(([country, clicks]) => ({ country: trimmed(country), clicks }));
@@ -137,9 +142,9 @@ function countryRows(html: string): LinkStats['clicks_by_country'] {
 
 /** Converts "12 hits on March 03 2026" (or "URL has never been clicked") into a best day. */
 function parseBestDay(value: string): LinkStats['best_day'] {
-  const match = /^(\d+) hits? on (.+)$/.exec(value);
+  const match = /^([\d,]+) hits? on (.+)$/.exec(value);
   if (match === null) return null;
-  return { date: parseDate(match[2] ?? '', 'MMMM dd yyyy'), clicks: numeric(match[1]) ?? 0 };
+  return { date: parseDate(match[2] ?? '', 'MMMM dd yyyy'), clicks: clickCount(match[1]) };
 }
 
 /**
@@ -171,7 +176,7 @@ export function parseLinkPage(html: string, keyword: string): LinkStats {
     note: textOrNull($('#url_note').first()),
     collection_id: collectionId,
     collection: collectionName(textOrNull(picker.find('option[selected]').first())),
-    total_clicks: numeric(/\d+/.exec(text(allTime))?.[0]) ?? 0,
+    total_clicks: clickCount(/[\d,]+/.exec(text(allTime))?.[0]),
     created: parseDate(created),
     clicks_by_hour: chartRows(html, 'drawChartHrs24'),
     clicks_by_day_7: chartRows(html, 'drawChartDays7'),
@@ -299,7 +304,8 @@ export function parseCreatedKeyword(js: string): string | null {
 /**
  * The messages of a 422 body: either `{ errors: [...] }` or Rails' per-field form
  * `{ keyword: ["has already been taken"] }`, read as "Keyword has already been taken".
- * Null when the body is not JSON, e.g. the HTML page Rails serves for a stale CSRF token.
+ * Null when there are none: a body that is not JSON (the HTML page Rails serves for a stale
+ * CSRF token) or JSON without any message.
  */
 export function describeErrors(body: string): string | null {
   let parsed: unknown;
@@ -310,10 +316,10 @@ export function describeErrors(body: string): string | null {
   }
   if (typeof parsed !== 'object' || parsed === null) return null;
   const record = parsed as Record<string, unknown>;
-  if (Array.isArray(record['errors'])) return record['errors'].map(String).join('. ');
-  return Object.entries(record)
-    .flatMap(([field, messages]) =>
-      Array.isArray(messages) ? messages.map((message) => `${startCase(field)} ${message}`) : [],
-    )
-    .join('. ');
+  const messages = Array.isArray(record['errors'])
+    ? record['errors'].map(String)
+    : Object.entries(record).flatMap(([field, values]) =>
+        Array.isArray(values) ? values.map((value) => `${startCase(field)} ${value}`) : [],
+      );
+  return messages.length === 0 ? null : messages.join('. ');
 }

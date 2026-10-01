@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { escape } from 'lodash-es';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { launchBrowser, type BrowserPage } from './browser.js';
@@ -38,18 +39,15 @@ export class Connection {
 
   constructor(readonly spec: ServiceSpec) {}
 
+  /** Whether the service has a session the app still accepts. */
+  get live(): boolean {
+    return this.session !== undefined && !this.session.expired;
+  }
+
   /** The live session, or throws `AuthRequiredError` telling the model to call `login`. */
   require(): Session {
-    if (this.session === undefined) {
-      throw new AuthRequiredError(
-        `Not signed in to ${this.spec.name}. Call the \`login\` tool first.`,
-      );
-    }
-    if (this.session.expired) {
-      throw new AuthRequiredError(
-        `The ${this.spec.name} session has expired. Call the \`login\` tool to sign in again.`,
-      );
-    }
+    if (this.session === undefined) throw AuthRequiredError.notSignedIn(this.spec.name);
+    if (this.session.expired) throw AuthRequiredError.expired(this.spec.name);
     return this.session;
   }
 }
@@ -86,7 +84,7 @@ export function requirePrincipal(): Principal {
 export function serviceStatus(): ServiceStatus[] {
   return [...connections.values()].map((connection) => ({
     name: connection.spec.name,
-    signedIn: connection.session !== undefined && !connection.session.expired,
+    signedIn: connection.live,
   }));
 }
 
@@ -111,6 +109,8 @@ export function login(): Promise<void> {
  * the IdP single sign-on session is gone too.
  */
 export async function logout(): Promise<void> {
+  // A sign-in in progress holds the browser profile; let it finish (or fail) first.
+  await inFlight?.catch(() => undefined);
   current = undefined;
   for (const connection of connections.values()) connection.session = undefined;
   const browser = await launchBrowser({ headless: true });
@@ -124,9 +124,7 @@ export async function logout(): Promise<void> {
 }
 
 async function runLogin(): Promise<void> {
-  const pending = [...connections.values()].filter(
-    (connection) => connection.session === undefined || connection.session.expired,
-  );
+  const pending = [...connections.values()].filter((connection) => !connection.live);
   if (current !== undefined && pending.length === 0) return;
 
   const browser = await launchBrowser({ headless: false });
@@ -147,6 +145,7 @@ async function runLogin(): Promise<void> {
 /** Runs the CAS flow against a loopback callback and validates the ticket it receives. */
 async function identify(page: BrowserPage): Promise<Principal> {
   const { promise, resolve, reject } = Promise.withResolvers<Principal>();
+  let service = '';
 
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', service);
@@ -163,13 +162,13 @@ async function identify(page: BrowserPage): Promise<Principal> {
     validateTicket(ticket, service).then(
       (principal) => {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-        res.end(html('Signed in', `Signed in as <b>${principal.user}</b>.`));
+        res.end(html('Signed in', `Signed in as <b>${escape(principal.user)}</b>.`));
         resolve(principal);
       },
       (error: unknown) => {
         const message = error instanceof Error ? error.message : String(error);
         res.writeHead(502, { 'content-type': 'text/html; charset=utf-8' });
-        res.end(html('Sign-in failed', message));
+        res.end(html('Sign-in failed', escape(message)));
         reject(error instanceof Error ? error : new Error(message));
       },
     );
@@ -180,22 +179,21 @@ async function identify(page: BrowserPage): Promise<Principal> {
     server.listen(0, '127.0.0.1', ok);
   });
   const { port } = server.address() as AddressInfo;
-  const service = `http://${CALLBACK_HOST}:${port}/callback`;
-
-  const timer = setTimeout(() => {
-    reject(new Error('Timed out waiting for the browser sign-in. Call login again to retry.'));
-  }, STEP_TIMEOUT_MS);
-  timer.unref();
+  service = `http://${CALLBACK_HOST}:${port}/callback`;
 
   try {
     const loginUrl = new URL(LOGIN_URL);
     loginUrl.searchParams.set('service', service);
     await page.goto(loginUrl.toString());
-    const principal = await promise;
+    // Waiting on the page first means a closed window rejects at once instead of leaving the
+    // callback promise pending; the callback has answered by the time the page has loaded.
     await page.waitForUrl((url) => url.pathname === '/callback', STEP_TIMEOUT_MS);
-    return principal;
+    return await promise;
+  } catch (error) {
+    throw new Error('The browser sign-in did not complete. Call login again to retry.', {
+      cause: error,
+    });
   } finally {
-    clearTimeout(timer);
     server.close();
   }
 }
@@ -204,6 +202,9 @@ async function identify(page: BrowserPage): Promise<Principal> {
 async function establish(page: BrowserPage, spec: ServiceSpec): Promise<Session> {
   await page.goto(spec.loginUrl);
   if (spec.loginForm !== undefined) await page.submitForm(spec.loginUrl, spec.loginForm);
+  if (spec.loginClick !== undefined && !isSignedInUrl(spec, page.url())) {
+    await page.click(spec.loginClick);
+  }
   try {
     await page.waitForUrl((url) => isSignedInUrl(spec, url), STEP_TIMEOUT_MS);
   } catch (error) {
@@ -246,6 +247,7 @@ export function parseServiceResponse(xml: string): Principal {
   return { user, attributes };
 }
 
+/** A minimal page for the callback tab; `body` must already be HTML-escaped. */
 function html(title: string, body: string): string {
   return `<!doctype html><meta charset="utf-8"><title>umd-mcp: ${title}</title><body style="font-family:system-ui;margin:3rem"><h1>${title}</h1><p>${body}</p>`;
 }

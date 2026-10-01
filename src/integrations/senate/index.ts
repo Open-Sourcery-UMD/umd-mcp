@@ -1,8 +1,8 @@
-import { sortBy } from 'lodash-es';
+import { sortBy, uniq } from 'lodash-es';
 import { z } from 'zod';
 import { Integration, tool } from '../base.js';
 import {
-  committeeFilter,
+  committeeFolder,
   groupKey,
   groupUrl,
   type RawBill,
@@ -27,6 +27,7 @@ import {
   toGroupPage,
   toSenateMeetings,
   toSenator,
+  yearFilter,
 } from './mappers.js';
 import {
   academicYear,
@@ -101,10 +102,11 @@ export class Senate extends Integration {
     return sortBy(years, (year) => year).reverse();
   }
 
-  private meetingFiles(area: string, filter?: string): Promise<RawFile[]> {
+  /** One academic year's S3 objects in a meeting area, with its folders when asked. */
+  private meetingFiles(area: string, year: string, includeDirectories = false): Promise<RawFile[]> {
     return this.get<RawFile[]>(`s3/storage/${area}/files`, {
-      filter,
-      includeDirectories: filter === undefined ? undefined : true,
+      filter: yearFilter(year),
+      includeDirectories: includeDirectories || undefined,
     });
   }
 
@@ -384,11 +386,18 @@ export class Senate extends Integration {
     if (wanted === undefined || !years.includes(wanted)) {
       throw new Error(`${this.name}: no committee meetings are filed for ${wanted ?? 'any year'}`);
     }
-    const files = await this.meetingFiles(
-      MEETING_AREAS.committee,
-      committeeFilter(wanted, committee),
+    // Folders are listed only for the newest year, so the year's files are read whole. Their
+    // committee folders are spelled differently from the CMS names ("Programs, Curricula, &
+    // Courses"), sometimes several ways in one year, so every folder with the same words counts.
+    const files = await this.meetingFiles(MEETING_AREAS.committee, wanted, true);
+    const key = groupKey(committee);
+    const folders = uniq(files.flatMap((file) => committeeFolder(file) ?? [])).filter(
+      (folder) => groupKey(folder) === key,
     );
-    return { academic_year: wanted, years, meetings: toCommitteeMeetings(files) };
+    if (folders.length === 0) {
+      throw new Error(`${this.name}: no committee "${committee}" has meetings filed for ${wanted}`);
+    }
+    return { academic_year: wanted, years, meetings: toCommitteeMeetings(files, folders) };
   }
 
   @tool({
@@ -401,14 +410,12 @@ export class Senate extends Integration {
     output: senateMeetingsSchema,
   })
   async get_meetings({ year }: { year?: string | undefined }): Promise<SenateMeetings> {
-    const [years, files] = await Promise.all([
-      this.meetingYears(MEETING_AREAS.senate),
-      this.meetingFiles(MEETING_AREAS.senate),
-    ]);
+    const years = await this.meetingYears(MEETING_AREAS.senate);
     const wanted = year ?? years[0];
     if (wanted === undefined || !years.includes(wanted)) {
       throw new Error(`${this.name}: no meeting schedule for ${wanted ?? 'any year'}`);
     }
-    return { academic_year: wanted, years, ...toSenateMeetings(files, wanted) };
+    const files = await this.meetingFiles(MEETING_AREAS.senate, wanted);
+    return { academic_year: wanted, years, ...toSenateMeetings(files) };
   }
 }

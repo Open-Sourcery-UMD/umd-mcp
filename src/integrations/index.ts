@@ -1,3 +1,5 @@
+import { ActiveTerp } from './activeterp/catalog/index.js';
+import { ActiveTerpMember } from './activeterp/member/index.js';
 import { Athletics } from './athletics/index.js';
 import type { Integration } from './base.js';
 import { Calendar } from './calendar/index.js';
@@ -23,6 +25,8 @@ export function createIntegrations(): Integration[] {
     new Nutrition(),
     new ScheduleOfClasses(),
     new StudentPortal(),
+    new ActiveTerp(),
+    new ActiveTerpMember(),
     new Athletics(),
     new Calendar(),
     new Dining(),

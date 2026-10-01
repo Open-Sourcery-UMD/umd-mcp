@@ -5,6 +5,9 @@ export const SITE = 'https://terplink.umd.edu';
 
 export const IMAGE_ROOT = 'https://se-images.campuslabs.com/clink/images/';
 
+/** The most items a plain REST list (`/category`, `/organization/category`) hands out per page. */
+export const PAGE_SIZE = 100;
+
 /** Event themes as the API spells them; "Unknown" appears on old events only. */
 export const EVENT_THEMES = [
   'Arts',
@@ -131,7 +134,7 @@ export const eventAddressSchema = postalAddressSchema
   })
   .describe('Where the event is held');
 
-export const eventSchema = eventSummarySchema.omit({ location: true }).extend({
+export const eventSchema = eventSummarySchema.omit({ location: true, rsvp_total: true }).extend({
   address: eventAddressSchema,
   co_hosts: z.array(z.number().int()).describe('Ids of every hosting organization'),
   rsvp: z

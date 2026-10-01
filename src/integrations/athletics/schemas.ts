@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isoDate } from '../../common.js';
+import { isoDate, linkSchema } from '../../common.js';
 
 export const SITE = 'https://umterps.com';
 
@@ -37,12 +37,22 @@ type Outcome = (typeof OUTCOMES)[keyof typeof OUTCOMES];
 
 const outcome = z.enum(Object.values(OUTCOMES) as Outcome[]);
 
-/** Game types the site documents; the live calendar also returns undocumented codes ("X"). */
-export const GAME_TYPES: Record<string, string> = {
+/**
+ * What kind of contest a game is, keyed by the site's type code. "S" is how the live schedules
+ * flag exhibitions ("Georgetown (EXH.)"); "X" is what invitationals and other multi-team events
+ * carry.
+ */
+export const GAME_TYPES = {
   R: 'regular_season',
   E: 'exhibition',
+  S: 'scrimmage',
   P: 'postseason',
-};
+  X: 'other',
+} as const;
+
+type GameType = (typeof GAME_TYPES)[keyof typeof GAME_TYPES];
+
+const gameType = z.enum(Object.values(GAME_TYPES) as GameType[]);
 
 /** Who competes, keyed by the site's gender code. */
 export const GENDERS = { m: 'men', f: 'women', g: 'mixed' } as const;
@@ -116,7 +126,9 @@ export const gameSchema = z.object({
   starts_at: z.string().nullable().describe('Start as an ISO 8601 UTC timestamp'),
   status: gameStatus,
   state: z.string().nullable().describe('Site game state, e.g. "SCHEDULED", "GAMECOMPLETE"'),
-  type: z.string().describe('"regular_season", "exhibition", "postseason" or the site\'s own code'),
+  type: gameType.describe(
+    '"scrimmage" covers exhibitions; "other" covers invitationals and multi-team events',
+  ),
   venue,
   at_or_vs: z.string().nullable().describe('"at" or "vs"'),
   location: z.string().nullable().describe('City, e.g. "College Park, MD"'),
@@ -130,13 +142,15 @@ export const gameSchema = z.object({
   recap_story_id: z.number().int().nullable().describe('Pass to athletics_get_article'),
 });
 
+const record = z.string().nullable().describe('Wins-losses, e.g. "2-2"; null when not kept');
+
 export const teamRecordSchema = z.object({
-  overall: z.string().nullable().describe('e.g. "2-2"'),
-  conference: z.string().nullable(),
-  streak: z.string().nullable().describe('e.g. "W3", "L2"'),
-  home: z.string().nullable(),
-  away: z.string().nullable(),
-  neutral: z.string().nullable(),
+  overall: record,
+  conference: record,
+  streak: z.string().nullable().describe('e.g. "W3", "L2"; null when not kept'),
+  home: record,
+  away: record,
+  neutral: record,
 });
 
 export const scheduleSchema = z.object({
@@ -218,8 +232,8 @@ export const articleSchema = storySchema.extend({
   content: z.string().describe('Story body as plain text'),
   byline: z.string().nullable(),
   links: z
-    .array(z.object({ text: z.string().nullable(), url: z.string() }))
-    .describe('Related links the story carries'),
+    .array(linkSchema)
+    .describe('Related links the story carries; the URL stands in for missing text'),
 });
 
 export const calendarDaySchema = z.object({
@@ -235,11 +249,16 @@ export const upcomingEventSchema = z.object({
   starts_at: z.string().nullable().describe('ISO 8601 UTC timestamp'),
   venue,
   location: z.string().nullable(),
-  opponent: z.string().nullable().describe('Opponent as displayed, e.g. "#2 Indiana"'),
+  opponent: z
+    .string()
+    .nullable()
+    .describe('Opponent with any ranking prefix, e.g. "#2 Indiana"; null when there is none'),
   conference_game: z.boolean(),
-  tv: z.string().nullable(),
-  video_url: link,
-  stats_url: link,
+  tv: z.string().nullable().describe('TV network, e.g. "BTN"; null when not televised'),
+  radio: z.string().nullable().describe('Radio network; null when not broadcast'),
+  video_url: link.describe('Where to watch'),
+  audio_url: link.describe('Where to listen'),
+  stats_url: link.describe('Live stats'),
 });
 
 export type Sport = z.infer<typeof sportSchema>;

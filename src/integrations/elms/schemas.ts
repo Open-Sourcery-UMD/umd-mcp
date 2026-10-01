@@ -70,30 +70,45 @@ export const MODULE_ITEM_TYPES = [
 
 export const TODO_TYPES = ['submitting', 'grading'] as const;
 
+export const TODO_KINDS = ['assignment', 'quiz'] as const;
+
+/** Planner item types Canvas documents; it adds new ones, which read as "other". */
 export const PLANNABLE_TYPES = [
   'announcement',
   'assignment',
+  'sub_assignment',
   'discussion_topic',
   'quiz',
   'wiki_page',
   'planner_note',
   'calendar_event',
   'assessment_request',
+  'peer_review_sub_assignment',
 ] as const;
+
+export const plannableType = z
+  .enum([...PLANNABLE_TYPES, 'other'])
+  .describe('What the item is about; "other" for a type Canvas added that this tool does not know');
 
 export const EVENT_TYPES = ['event', 'assignment'] as const;
 
+/** Activity stream item types Canvas documents; it adds new ones, which read as "other". */
 export const ACTIVITY_TYPES = [
   'DiscussionTopic',
   'DiscussionEntry',
   'Announcement',
   'Conversation',
   'Message',
+  'ContextMessage',
   'Submission',
-  'Conference',
+  'WebConference',
   'Collaboration',
   'AssessmentRequest',
 ] as const;
+
+export const activityType = z
+  .enum([...ACTIVITY_TYPES, 'other'])
+  .describe('Kind of activity; "other" for a type Canvas added that this tool does not know');
 
 export const CONVERSATION_STATES = ['read', 'unread', 'archived'] as const;
 
@@ -141,7 +156,7 @@ export const courseSchema = z.object({
   end_at: timestamp,
   teachers: z.array(teacherSchema),
   enrollment_type: z.enum(ENROLLMENT_TYPES).nullable().describe("The user's role in the course"),
-  grades: gradesSchema.nullable().describe('Current standing; null when the course hides grades'),
+  grades: gradesSchema.nullable().describe('Current standing; null when Canvas reports no scores'),
   hide_final_grades: z.boolean(),
   url: z.string().describe('Course home page'),
 });
@@ -206,7 +221,7 @@ export const enrollmentSchema = z.object({
   course_id: canvasId,
   type: z.enum(ENROLLMENT_TYPES),
   state: z.enum(ENROLLMENT_STATES),
-  grades: gradesSchema.nullable(),
+  grades: gradesSchema.nullable().describe('null when Canvas reports no scores'),
   last_activity_at: timestamp,
   total_activity_time: z.number().int().nullable().describe('Seconds spent in the course'),
 });
@@ -247,21 +262,30 @@ export const announcementSchema = z.object({
 });
 
 export const todoItemSchema = z.object({
-  type: z.enum(TODO_TYPES),
-  course_id: canvasId.nullable(),
-  course_name: z.string().nullable(),
-  assignment: z.object({
-    id: canvasId,
-    name: z.string(),
-    due_at: timestamp,
-    points_possible: z.number().nullable(),
-    url: z.string().nullable(),
-  }),
+  type: z.enum(TODO_TYPES).describe('"submitting" for work the student owes'),
+  kind: z
+    .enum(TODO_KINDS)
+    .describe('"assignment" (including New Quizzes) or "quiz" for a classic quiz'),
+  course_id: canvasId.nullable().describe('null for items outside a course'),
+  course_name: z.string().nullable().describe('null for items outside a course'),
+  item: z
+    .object({
+      id: canvasId.describe('Assignment id (pass to elms_get_submission) or classic quiz id'),
+      name: z.string(),
+      due_at: timestamp,
+      points_possible: z.number().nullable().describe('null when ungraded'),
+      url: z.string().nullable().describe('Link to the item in ELMS'),
+    })
+    .describe('The assignment or quiz to do'),
 });
 
 export const plannerItemSchema = z.object({
-  type: z.enum(PLANNABLE_TYPES),
-  id: canvasId.describe('Id of the assignment, announcement, quiz, ... this item is about'),
+  type: plannableType,
+  id: canvasId
+    .nullable()
+    .describe(
+      'Id of the assignment, announcement, quiz, ... this item is about; null when Canvas gives none',
+    ),
   title: z.string(),
   date: timestamp.describe('When it is due or happens'),
   course_id: canvasId.nullable(),
@@ -289,7 +313,7 @@ export const upcomingEventSchema = z.object({
 
 export const activityItemSchema = z.object({
   id: canvasId,
-  type: z.enum(ACTIVITY_TYPES),
+  type: activityType,
   title: z.string().nullable(),
   message: html('Activity text'),
   created_at: timestamp,

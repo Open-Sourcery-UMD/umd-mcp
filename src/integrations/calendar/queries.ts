@@ -13,8 +13,8 @@ const EVENT_FIELDS = `
   summary: commonRichTextTwo
   description: commonRichText
   image: commonAssetHeroImageSingle { url }
-  eventType: categoriesEventTypeMultiple { title slug }
-  audience: categoryAudienceMultiple { title slug }
+  eventType: categoriesEventTypeMultiple { slug }
+  audience: categoryAudienceMultiple { slug }
   featured: categoriesEventStatus { slug }
   locationType: calendarLocationType
   venue: calendarVenueDescription
@@ -25,7 +25,7 @@ const EVENT_FIELDS = `
   contactName: commonPlainTextThree
   contactPhone: commonPlainTextFour
   contactEmail: commonEmailAddress
-  calendar { id name handle }
+  calendar { handle }
 `;
 
 const RECURRENCE_FIELDS = 'rrule freq interval count until byDay byMonth byMonthDay postDate';
@@ -98,6 +98,22 @@ async function currentToken(): Promise<string> {
 }
 
 /**
+ * Whether the site rejected the bearer token. A stale or malformed one gets HTTP 400 with the
+ * plain-JSON body `{"message": "Missing Authorization header"}`; a GraphQL error from a
+ * query that was accepted comes back as HTTP 200 with an `errors` array instead.
+ */
+function rejectedToken(error: ClientError): boolean {
+  const { status, body } = error.response;
+  return status === 401 || (status === 400 && /authorization|token/i.test(body));
+}
+
+/** The server's first GraphQL error message, instead of the whole response `ClientError` prints. */
+function queryError(error: ClientError): Error {
+  const message = error.response.errors?.[0]?.message ?? 'query failed';
+  return new Error(`calendar: ${message}`, { cause: error });
+}
+
+/**
  * Runs a query; if the site rejects the token (it rotates on redeploy), reads the current one
  * out of the search page's bundle and retries once.
  */
@@ -105,10 +121,13 @@ export async function query<T>(document: string, variables: Record<string, unkno
   try {
     return await client.request<T>(document, variables);
   } catch (error) {
-    if (!(error instanceof ClientError) || ![400, 401].includes(error.response.status)) {
-      throw error;
-    }
+    if (!(error instanceof ClientError)) throw error;
+    if (!rejectedToken(error)) throw queryError(error);
     client = newClient(await currentToken());
-    return client.request<T>(document, variables);
+    try {
+      return await client.request<T>(document, variables);
+    } catch (retried) {
+      throw retried instanceof ClientError ? queryError(retried) : retried;
+    }
   }
 }

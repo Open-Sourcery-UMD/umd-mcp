@@ -52,8 +52,11 @@ import {
   upcomingEventSchema,
 } from './schemas.js';
 
-/** Players the site returns per page of a last-name search. */
-const PAGE_SIZE = 100;
+/** Players returned per page of a last-name search. */
+const PLAYER_PAGE_SIZE = 100;
+
+/** More than any team's coaching staff; the endpoint otherwise pages by 10. */
+const COACHES_PAGE_SIZE = 100;
 
 export class Athletics extends Integration {
   readonly name = 'athletics';
@@ -157,7 +160,7 @@ export class Athletics extends Integration {
         .string()
         .trim()
         .min(1)
-        .describe('Start of the last name, e.g. "Lock" or just "L"'),
+        .describe('Start of the last name, case-insensitive, e.g. "Lock" or just "L"'),
       sport_id: sportId.optional(),
       page,
     },
@@ -176,28 +179,16 @@ export class Athletics extends Integration {
     sport_id?: number | undefined;
     page: number;
   }): Promise<{ players: PlayerSearchResult[]; total: number; pages: number }> {
-    // The site only filters by the first letter, so every page for it is read and the
-    // prefix is applied here before paging the matches.
-    const prefix = last_name.toLowerCase();
-    const matches: PlayerSearchResult[] = [];
-    for (let index = 1, pages = 1; index <= pages; index++) {
-      const result = await this.get<RawPaged<RawPlayerHistory>>('Players/history', {
-        lastNameStart: prefix.charAt(0).toUpperCase(),
-        sportId: sport_id,
-        $pageIndex: index,
-        $pageSize: PAGE_SIZE,
-      });
-      pages = result.pages;
-      matches.push(
-        ...result.items
-          .filter((player) => (player.lastName ?? '').toLowerCase().startsWith(prefix))
-          .map(toPlayerSearchResult),
-      );
-    }
+    const result = await this.get<RawPaged<RawPlayerHistory>>('Players/history', {
+      lastNameStart: last_name,
+      sportId: sport_id,
+      $pageIndex: pageIndex,
+      $pageSize: PLAYER_PAGE_SIZE,
+    });
     return {
-      players: matches.slice((pageIndex - 1) * PAGE_SIZE, pageIndex * PAGE_SIZE),
-      total: matches.length,
-      pages: Math.ceil(matches.length / PAGE_SIZE),
+      players: result.items.map(toPlayerSearchResult),
+      total: result.total,
+      pages: result.pages,
     };
   }
 
@@ -209,8 +200,9 @@ export class Athletics extends Integration {
     output: { coaches: z.array(coachSchema).describe('Head coach first') },
   })
   async get_coaches({ sport_id }: { sport_id: number }): Promise<{ coaches: Coach[] }> {
-    const { items } = await this.get<{ items: RawCoach[] }>('Staff/coaches', {
+    const { items } = await this.get<RawPaged<RawCoach>>('Staff/coaches', {
       sportId: sport_id,
+      $pageSize: COACHES_PAGE_SIZE,
     });
     return { coaches: items.map(toCoach) };
   }
@@ -303,21 +295,5 @@ export class Athletics extends Integration {
       $pageSize: pageSize,
     });
     return { events: items.flatMap((item) => item.games ?? []).map(toUpcomingEvent) };
-  }
-
-  @tool({
-    title: 'Get live scores',
-    description:
-      'Maryland games in progress right now with their live scores, as the site reports them; empty when nothing is being played. No login needed.',
-    input: {},
-    output: {
-      games: z
-        .array(z.unknown())
-        .describe("Live games exactly as the site's LiveStats feed returns them; empty when none"),
-    },
-  })
-  async get_live_scores(): Promise<{ games: unknown[] }> {
-    const live = await this.get<unknown[] | { Games?: unknown[] }>('LiveStats');
-    return { games: Array.isArray(live) ? live : (live.Games ?? []) };
   }
 }

@@ -1,10 +1,10 @@
 import * as cheerio from 'cheerio';
-import { format, isValid, parse } from 'date-fns';
 import { escapeRegExp, sortBy, startCase, unescape } from 'lodash-es';
-import { decode, decodeOrNull, type Link } from '../../common.js';
+import { decode, decodeOrNull, type Link, member } from '../../common.js';
+import { isoDateFrom } from '../../lib/dates.js';
 import { htmlToTextOrNull } from '../../lib/html.js';
 import { absoluteUrl, links } from '../../lib/scrape.js';
-import { collapse, numeric, trimmed } from '../../lib/text.js';
+import { collapse, joinWords, numeric, trimmed } from '../../lib/text.js';
 import {
   type ActiveBill,
   type Bill,
@@ -16,6 +16,7 @@ import {
   type GroupSummary,
   type GroupType,
   type Member,
+  POPULATIONS,
   type RelatedBill,
   type SenateMeeting,
   type Senator,
@@ -138,10 +139,7 @@ export type RawFile = {
 
 /** "MM/DD/YYYY" as the legislation API prints dates, to YYYY-MM-DD; null when blank or odd. */
 function usDate(value: string | null | undefined): string | null {
-  const text = trimmed(value);
-  if (text === null) return null;
-  const date = parse(text, 'MM/dd/yyyy', new Date());
-  return isValid(date) ? format(date, 'yyyy-MM-dd') : null;
+  return isoDateFrom(value, 'MM/dd/yyyy');
 }
 
 /** The date part of "YYYY-MM-DD" or an ISO timestamp; null when blank. */
@@ -291,7 +289,7 @@ export function toSenator(raw: RawSenator): Senator {
     name: collapse(raw.name),
     email: trimmed(raw.email),
     seat: collapse(raw.senateSeat),
-    population: raw.population,
+    population: member(POPULATIONS, raw.population, 'population'),
     college: trimmed(raw.college),
     term_ends: numeric(raw.term) || null,
     constituency: raw.constituency,
@@ -301,12 +299,12 @@ export function toSenator(raw: RawSenator): Senator {
 export function toConstituent(raw: RawPerson): Constituent {
   return {
     directory_id: raw.directoryId,
-    name: collapse([raw.firstName, raw.middleName, raw.lastName].filter(Boolean).join(' ')),
+    name: joinWords(raw.firstName, raw.middleName, raw.lastName) ?? '',
     title: trimmed(raw.title),
     college: trimmed(raw.collegeAcronym),
     department: trimmed(raw.department),
     major: trimmed(raw.major),
-    population: raw.population ?? 'Uncertain',
+    population: member(POPULATIONS, raw.population ?? 'Uncertain', 'population'),
     constituency: raw.constituency ?? 'Uncertain',
     represented_by_college: COLLEGE_CONSTITUENCIES.includes(raw.constituency ?? ''),
   };
@@ -365,20 +363,40 @@ export function toPastBills(all: RawPastBills): CommitteeLegislation[] {
   }));
 }
 
-/** The regular expression the site filters a committee's file listing with (agendas only). */
-export function committeeFilter(year: string, name: string): string {
-  return `(?i)^${escapeRegExp(year)}/${escapeRegExp(name)}/(?:[^/]+/)*(?:$|[^/]*agenda[^/]*$)`;
+/**
+ * The `filter` that keeps an S3 listing to one academic year's folder. The API matches the
+ * whole object name against it, so the pattern has to cover the rest of the name too.
+ */
+export function yearFilter(year: string): string {
+  return `(?i)^${escapeRegExp(year)}/.*`;
+}
+
+/** The committee folder an S3 object sits in: the second segment of "{year}/{committee}/...". */
+export function committeeFolder(file: RawFile): string | null {
+  return trimmed(file.name.split('/')[1]);
+}
+
+/**
+ * Whether the site shows a committee file to the public: only the agendas (its own listing
+ * filter keeps `[^/]*agenda[^/]*$`); other materials need a committee member login.
+ */
+function isAgenda(fileName: string): boolean {
+  return /agenda/i.test(fileName.split('/').pop() ?? '');
 }
 
 /** Meeting folders are named "YYYY-MM-DD-HHMM-HHMM" under "{year}/{committee}/". */
 const MEETING_FOLDER = /^(\d{4}-\d{2}-\d{2})-(\d{2})(\d{2})-(\d{2})(\d{2})$/;
 
-export function toCommitteeMeetings(files: RawFile[]): CommitteeMeeting[] {
+/** The meetings filed in `folders` (one committee under its S3 spellings) of a year's listing. */
+export function toCommitteeMeetings(
+  files: RawFile[],
+  folders: readonly string[],
+): CommitteeMeeting[] {
   const meetings = new Map<string, CommitteeMeeting>();
   for (const file of files) {
-    const [, , folder = '', ...rest] = file.name.split('/');
+    const [, committee = '', folder = '', ...rest] = file.name.split('/');
     const match = MEETING_FOLDER.exec(folder);
-    if (match === null) continue;
+    if (match === null || !folders.includes(committee)) continue;
     const [, date = '', startHour, startMinute, endHour, endMinute] = match;
     const meeting = meetings.get(folder) ?? {
       date,
@@ -389,7 +407,7 @@ export function toCommitteeMeetings(files: RawFile[]): CommitteeMeeting[] {
     meetings.set(folder, meeting);
     const fileName = rest.join('/');
     const url = absoluteUrl(file.url, SITE);
-    if (fileName !== '' && file.size > 0 && url !== null) {
+    if (isAgenda(fileName) && file.size > 0 && url !== null) {
       meeting.documents.push({ text: fileName, url });
     }
   }
@@ -417,16 +435,16 @@ function meetingLabel(fileNames: string[]): string | null {
   return null;
 }
 
-/** The meetings and loose documents filed under one academic year. */
-export function toSenateMeetings(
-  files: RawFile[],
-  year: string,
-): { meetings: SenateMeeting[]; other_documents: Link[] } {
+/** The meetings and loose documents in one academic year's listing. */
+export function toSenateMeetings(files: RawFile[]): {
+  meetings: SenateMeeting[];
+  other_documents: Link[];
+} {
   const byDate = new Map<string, { names: string[]; documents: Link[] }>();
   const other: Link[] = [];
   for (const file of files) {
-    const [fileYear, rest = ''] = file.name.split('/');
-    if (fileYear !== year || rest === '') continue;
+    const [, rest = ''] = file.name.split('/');
+    if (rest === '') continue;
     const url = absoluteUrl(file.url, SITE);
     if (url === null) continue;
     const match = MEETING_FILE.exec(rest);

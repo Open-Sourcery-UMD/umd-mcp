@@ -4,9 +4,10 @@ import {
   delivery,
   departmentCode,
   meetingType,
+  type schoolDay,
   sectionId,
-  weekday,
   term,
+  weekday,
 } from '../../../common.js';
 
 /** Locations and programs the site calls "teaching centers", with the code the query takes. */
@@ -30,11 +31,20 @@ export const TEACHING_CENTERS = {
 
 export type TeachingCenter = keyof typeof TEACHING_CENTERS;
 
-export const teachingCenter = z.enum(Object.keys(TEACHING_CENTERS) as TeachingCenter[]).describe(
-  `Only sections taught at this location or in this program: ${Object.entries(TEACHING_CENTERS)
-    .map(([code, name]) => `"${code}" ${name}`)
-    .join(', ')} (default "ALL")`,
-);
+const TEACHING_CENTER_TEXT = `Only sections taught at this location or in this program: ${Object.entries(
+  TEACHING_CENTERS,
+)
+  .map(([code, name]) => `"${code}" ${name}`)
+  .join(', ')}`;
+
+export const teachingCenter = z
+  .enum(Object.keys(TEACHING_CENTERS) as TeachingCenter[])
+  .describe(TEACHING_CENTER_TEXT);
+
+/** `teachingCenter` where the site's own default, every location, applies when it is left out. */
+export const teachingCenterOrAll = teachingCenter
+  .default('ALL')
+  .describe(`${TEACHING_CENTER_TEXT} (default "ALL")`);
 
 export const clockTime = z
   .string()
@@ -67,15 +77,50 @@ export const buildingCode = z
 
 export const CREDIT_COMPARISONS = ['>=', '=', '<='] as const;
 
+export const creditComparison = z
+  .enum(CREDIT_COMPARISONS)
+  .default('=')
+  .describe('How to compare course credits with `credits` (default "=")');
+
 export const COURSE_LEVELS = ['ALL', 'UGRAD', 'GRAD'] as const;
 
+export const courseLevel = z
+  .enum(COURSE_LEVELS)
+  .default('ALL')
+  .describe('Only undergraduate ("UGRAD") or graduate ("GRAD") courses (default "ALL")');
+
 export const TIME_COMPARISONS = ['after', 'at', 'before', 'between'] as const;
+
+export const timeComparison = z
+  .enum(TIME_COMPARISONS)
+  .optional()
+  .describe(
+    'Only sections whose meetings start "after", "at" or "before" start_time, or "between" start_time and end_time',
+  );
+
+/** What `testudo_soc_search_courses` takes, once validated. */
+export type SearchArgs = {
+  term_id: string;
+  course_id?: string | undefined;
+  section_id?: string | undefined;
+  instructor?: string | undefined;
+  open_sections_only?: boolean | undefined;
+  credits?: number | undefined;
+  credits_compare: (typeof CREDIT_COMPARISONS)[number];
+  level: (typeof COURSE_LEVELS)[number];
+  delivery?: z.infer<typeof delivery>[] | undefined;
+  time_compare?: (typeof TIME_COMPARISONS)[number] | undefined;
+  start_time?: string | undefined;
+  end_time?: string | undefined;
+  days?: z.infer<typeof schoolDay>[] | undefined;
+  teaching_center: TeachingCenter;
+};
 
 const seatsAsOf = z
   .string()
   .nullable()
   .describe(
-    'When the seat counts on this page were last refreshed, as YYYY-MM-DDTHH:MM in US Eastern time (roughly hourly); null if the page does not say',
+    'When the seat counts on this page were last refreshed, as YYYY-MM-DDTHH:MM:SS in US Eastern time (roughly hourly); null if the page does not say',
   );
 
 const requirementText = (label: string) =>

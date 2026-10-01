@@ -23,8 +23,41 @@ export const menuDate = isoDate
 export const recipeId = z
   .string()
   .trim()
-  .regex(/^\d+\*\d+$/, 'Expected a recipe id like 060064*2')
-  .describe('Recipe identifier from a menu item, e.g. "060064*2"');
+  .regex(/^\d+\*\d+(?:\s*\d+)?(?:\/\d+)?$/, 'Expected a recipe id like 060064*2')
+  .describe(
+    'Recipe identifier from a menu item, e.g. "060064*2"; the portion after the "*" can be a fraction, e.g. "150313*1/4" or "040065*4 1/2"',
+  );
+
+/** Allergens the menu icons flag, keyed by the icon's "Contains ..." word in lower case. */
+export const ALLERGENS = {
+  dairy: 'dairy',
+  egg: 'egg',
+  gluten: 'gluten',
+  soy: 'soy',
+  pork: 'pork',
+  nuts: 'nuts',
+  fish: 'fish',
+  sesame: 'sesame',
+  pea_protein: 'pea_protein',
+  coconut: 'coconut',
+  alcohol: 'alcohol',
+  shellfish: 'shellfish',
+} as const;
+
+export type Allergen = (typeof ALLERGENS)[keyof typeof ALLERGENS];
+
+export const allergen = z.enum(Object.values(ALLERGENS) as Allergen[]);
+
+/** Dietary labels the menu icons carry, keyed by the icon's alt text in lower case. */
+export const DIETARY_LABELS = {
+  vegetarian: 'vegetarian',
+  vegan: 'vegan',
+  halalfriendly: 'halal_friendly',
+} as const;
+
+export type DietaryLabel = (typeof DIETARY_LABELS)[keyof typeof DIETARY_LABELS];
+
+export const dietaryLabel = z.enum(Object.values(DIETARY_LABELS) as DietaryLabel[]);
 
 export const menuItemSchema = z.object({
   name: z.string().describe('Name of the dish, e.g. "Pancakes Plain"'),
@@ -34,13 +67,11 @@ export const menuItemSchema = z.object({
       'Recipe identifier, e.g. "060064*2"; pass it to nutrition_get_recipe for the nutrition label',
     ),
   allergens: z
-    .array(z.string())
-    .describe(
-      'Allergens the dish contains, e.g. "dairy", "gluten", "nuts", "sesame", "pork", "alcohol"',
-    ),
+    .array(allergen)
+    .describe('Allergens the dish contains, e.g. "dairy", "gluten", "nuts", "sesame", "pork"'),
   labels: z
-    .array(z.string())
-    .describe('Dietary labels for the dish, e.g. "vegetarian", "vegan", "halal friendly"'),
+    .array(dietaryLabel)
+    .describe('Dietary labels for the dish, e.g. "vegetarian", "vegan", "halal_friendly"'),
 });
 
 export const stationSchema = z.object({
@@ -68,14 +99,14 @@ export const nutrientSchema = z.object({
   amount: z
     .number()
     .nullable()
-    .describe('Amount per serving, in `unit`; null if the label does not report it'),
+    .describe('Amount per serving, in `unit`; null when the label does not report it'),
   unit: z.string().describe('Unit of `amount`: "g", "mg" or "mcg"'),
   daily_value: z
     .number()
     .int()
     .nullable()
     .describe(
-      'Percent of the recommended daily value, based on a 2,000-calorie diet; null if the label does not give one',
+      'Percent of the recommended daily value, based on a 2,000-calorie diet; null when the label does not give one',
     ),
 });
 
@@ -94,7 +125,9 @@ export const recipeSchema = z.object({
     ),
   allergens: z
     .array(z.string())
-    .describe('Allergens the label declares, e.g. "gluten", "soybeans", "sesame"; empty if none'),
+    .describe(
+      'Allergens the label declares, as printed, e.g. "gluten", "soybeans", "sesame"; empty when none',
+    ),
 });
 
 export type MenuItem = z.infer<typeof menuItemSchema>;

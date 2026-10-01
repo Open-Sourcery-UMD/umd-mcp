@@ -48,11 +48,9 @@ export type RawTerm = {
 /** The portal's one-letter day codes. */
 type PortalDay = 'M' | 'T' | 'W' | 'H' | 'F' | 'S' | 'U';
 
-/** The portal's meeting type abbreviations. */
-type PortalMeetingType = 'Lec' | 'Dis' | 'Lab';
-
 export type RawActivity = {
-  type?: PortalMeetingType;
+  /** "Lec", "Dis" or "Lab"; other values are undocumented. */
+  type?: string;
   days?: PortalDay[];
   start?: { minSinceMid?: number };
   end?: { minSinceMid?: number };
@@ -220,7 +218,7 @@ const PORTAL_DAYS: Record<PortalDay, Weekday> = {
 };
 
 /** The portal's meeting type abbreviations, mapped to the shared vocabulary. */
-const PORTAL_MEETING_TYPES: Record<PortalMeetingType, MeetingType> = {
+const PORTAL_MEETING_TYPES: Record<string, MeetingType> = {
   Lec: 'lecture',
   Dis: 'discussion',
   Lab: 'lab',
@@ -256,8 +254,8 @@ function clockTime(minutes: number | undefined): string | null {
 
 export function toTermListEntry(entry: RawTerm | RawTermRef): TermListEntry {
   return 'termId' in entry
-    ? { id: entry.termId, name: entry.termName }
-    : { id: entry.id ?? '', name: entry.name ?? '' };
+    ? { id: entry.termId, name: trimmed(entry.termName) ?? '' }
+    : { id: entry.id ?? '', name: trimmed(entry.name) ?? '' };
 }
 
 function toOptionalTermListEntry(raw: RawTermRef | null | undefined): TermListEntry | null {
@@ -269,7 +267,8 @@ function toCalendarDate(raw: RawDate | null | undefined): CalendarDate | null {
   const month = numeric(raw?.month);
   const day = numeric(raw?.day);
   if (year === null || month === null || day === null) return null;
-  return { year, month, day, weekday: weekdayOf(new Date(year, month - 1, day)) };
+  const date = new Date(year, month - 1, day);
+  return { date: format(date, 'yyyy-MM-dd'), weekday: weekdayOf(date) };
 }
 
 export function toTerm(raw: RawTerm): Term {
@@ -295,7 +294,7 @@ function toMeeting(activity: RawActivity): Meeting {
   const name = trimmed(building?.name);
   const room = trimmed(building?.room);
   return {
-    type: decode(PORTAL_MEETING_TYPES, activity.type, 'meeting type'),
+    type: decodeOrNull(PORTAL_MEETING_TYPES, activity.type),
     days: list<PortalDay>(activity.days).map((day) => decode(PORTAL_DAYS, day, 'day code')),
     start_time: clockTime(activity.start?.minSinceMid),
     end_time: clockTime(activity.end?.minSinceMid),
@@ -311,7 +310,7 @@ function toScheduledCourse(raw: RawScheduledCourse, schedule: RawSchedule): Sche
   const end = trimmed(raw.end);
   return {
     course: trimmed(code.code) ?? `${code.prefix ?? ''}${code.number ?? ''}${code.extension ?? ''}`,
-    section: trimmed(raw.sectionId) ?? '',
+    section: trimmed(raw.sectionId),
     title: trimmed(raw.courseTitle),
     credits: numeric(raw.credit),
     delivery: decodeOrNull(PORTAL_DELIVERY, trimmed(raw.deliveryMethod)?.toUpperCase()),
@@ -359,11 +358,23 @@ function toAddress(raw: RawAddress | null | undefined): Address {
   return empty ? null : address;
 }
 
-function toBlock(raw: RawBlock | undefined): Block {
+function toBlock(raw: RawBlock | undefined): Block | null {
   if (raw == null) return null;
   const code = trimmed(raw.code);
   const description = trimmed(raw.desc);
   return code === null && description === null ? null : { code, description };
+}
+
+/**
+ * Registration blocks as the portal lists them: objects with a code and description where it
+ * gives them, otherwise whatever text it printed.
+ */
+function toBlocks(value: unknown): Block[] {
+  return list<unknown>(value).flatMap((item) => {
+    const block = isPlainObject(item) ? toBlock(item as RawBlock) : null;
+    if (block !== null) return [block];
+    return names([item]).map((description) => ({ code: null, description }));
+  });
 }
 
 function toDocumentRequest(raw: RawDocumentRequest): DocumentRequest {
@@ -419,7 +430,7 @@ export function toRegistrationAppointment(
       slot === null ? null : { date: trimmed(slot.dateFormat), time: trimmed(slot.time) },
     next_appointment_available:
       raw.displayNextRegAptDate === false ? null : toCalendarDate(raw.nextApptAvailable),
-    blocks: list<unknown>(raw.blocks),
+    blocks: toBlocks(raw.blocks),
     current_term: toOptionalTermListEntry(raw.currentTerm),
     registration_term: toOptionalTermListEntry(raw.regApptTerm),
     previous_registration_term: toOptionalTermListEntry(raw.prevRegApptTerm),

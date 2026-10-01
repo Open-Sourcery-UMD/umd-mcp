@@ -59,7 +59,7 @@ export const linkSchema = z.object({
   keyword,
   short_url: z.string().describe('The short link, e.g. "https://go.umd.edu/cs-advising"'),
   url: destination,
-  note: z.string().nullable().describe('Note the owner attached; null if none'),
+  note: z.string().nullable().describe('Note the owner attached; null when there is none'),
   collection_id: z
     .number()
     .int()
@@ -80,7 +80,7 @@ export const linkStatsSchema = linkSchema.extend({
   best_day: z
     .object({ date: isoDate, clicks: clicks('that day') })
     .nullable()
-    .describe('The day with the most clicks; null if the link has never been clicked'),
+    .describe('The day with the most clicks; null when the link has never been clicked'),
   clicks_by_country: z
     .array(
       z.object({
@@ -99,7 +99,7 @@ export const linkStatsSchema = linkSchema.extend({
 export const collectionSchema = z.object({
   id: z.number().int().describe('Collection id'),
   name: z.string().describe('Collection name'),
-  description: z.string().nullable().describe('Description; null if none'),
+  description: z.string().nullable().describe('Description; null when there is none'),
   members: z.number().int().describe('People who can manage its links'),
   links: z.number().int().describe('Links in it'),
   created: isoDate.describe('Date the collection was created'),
@@ -108,7 +108,7 @@ export const collectionSchema = z.object({
 export const memberSchema = z.object({
   id: z.number().int().describe('User id, for go_remove_collection_member'),
   name: z.string().describe('Full name'),
-  email: z.string().nullable().describe('Email address; null if unknown'),
+  email: z.string().nullable().describe('Email address; null when unknown'),
 });
 
 export const userSchema = z.object({

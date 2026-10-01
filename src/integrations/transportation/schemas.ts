@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { isoDate, linkSchema, weekday } from '../../common.js';
 
+/** The DOTS site; route pages and the pages the tools scrape live under it. */
+export const SITE = 'https://transportation.umd.edu';
+
 export const routeId = z
   .string()
   .trim()
@@ -10,8 +13,8 @@ export const routeId = z
 export const stopId = z
   .string()
   .trim()
-  .regex(/^\d{4}$/, 'Expected a four-digit stop id like 1001')
-  .describe('Four-digit stop id, e.g. "1001"');
+  .regex(/^\d{4,5}$/, 'Expected a stop id like 1001')
+  .describe('Stop id, as transportation_list_stops returns it, e.g. "1001"');
 
 export const serviceDate = isoDate
   .optional()
@@ -36,8 +39,12 @@ type Direction = (typeof DIRECTIONS)[keyof typeof DIRECTIONS];
 const direction = z.enum(Object.values(DIRECTIONS) as Direction[]);
 
 export const feedSchema = z.object({
-  valid_from: isoDate.describe('First date the timetable covers'),
-  valid_to: isoDate.describe('Last date the timetable covers'),
+  valid_from: isoDate
+    .nullable()
+    .describe('First date the timetable covers; null when the feed does not say'),
+  valid_to: isoDate
+    .nullable()
+    .describe('Last date the timetable covers; null when the feed does not say'),
   version: z.string().nullable().describe('Feed version as the publisher labels it'),
 });
 
@@ -46,8 +53,17 @@ export const routeSchema = z.object({
   short_name: z.string().nullable().describe('Number or code shown on the bus, e.g. "104"'),
   long_name: z.string().nullable().describe('Route name, e.g. "College Park Metro Station"'),
   color: z.string().nullable().describe('Route colour as a six-digit hex string, e.g. "93c47d"'),
-  url: z.string().describe('DOTS page with the stop list and printed timetable'),
-  scheduled_today: z.boolean().describe('true when at least one trip runs today'),
+  url: z
+    .string()
+    .nullable()
+    .describe(
+      'DOTS page with the stop list and printed timetable; null for event and charter routes without a page',
+    ),
+  scheduled: z
+    .boolean()
+    .describe(
+      'true when at least one trip runs on the requested date (today for transportation_list_routes)',
+    ),
 });
 
 export const stopSchema = z.object({
@@ -71,7 +87,9 @@ export const routeDetailSchema = routeSchema.extend({
   headsign: z.string().nullable().describe('Destination shown on the bus for this pattern'),
   stops: z
     .array(routeStopSchema)
-    .describe('Stops of the most common trip pattern, in order; empty when nothing is scheduled'),
+    .describe(
+      'Stops of the most common trip pattern on the requested date, in order; when `scheduled` is false, of the most common pattern over the whole timetable instead',
+    ),
   shape: z
     .array(z.tuple([z.number(), z.number()]))
     .describe('Route polyline as [longitude, latitude] pairs, thinned to at most 500 points'),

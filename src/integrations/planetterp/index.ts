@@ -13,6 +13,7 @@ import {
   type SearchResult,
   searchResultSchema,
   sectionNumber,
+  sectionSpellings,
 } from './schemas.js';
 
 export class PlanetTerp extends Integration {
@@ -146,13 +147,15 @@ export class PlanetTerp extends Integration {
         `${this.name}: planetterp_get_grades needs at least one of course or professor`,
       );
     }
-    const grades = await this.get<Grades[]>('grades', {
-      course,
-      professor,
-      semester,
-      section: section?.replace(/^0+(?=\d)/, ''),
-    });
-    return { grades };
+    // Sections are stored as "0101" through Spring 2022 and "101" from Fall 2022, so a
+    // section is asked for under both spellings; the two results never overlap.
+    const sections = section === undefined ? [undefined] : sectionSpellings(section);
+    const pages = await Promise.all(
+      sections.map((spelling) =>
+        this.get<Grades[]>('grades', { course, professor, semester, section: spelling }),
+      ),
+    );
+    return { grades: pages.flat() };
   }
 
   @tool({

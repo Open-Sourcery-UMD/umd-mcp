@@ -72,14 +72,19 @@ export const fitnessClassSchema = z.object({
   registration_url: z
     .string()
     .nullable()
-    .describe('Registration link on activeterp.umd.edu; registration opens 24 hours before class'),
+    .describe(
+      'Registration link on activeterp.umd.edu, which opens 24 hours before class; null when the class takes no registration',
+    ),
 });
 
 export const clubSportSchema = z.object({
   name: z.string().describe('Club name, e.g. "Badminton"'),
-  website: z.string().nullable().describe("The club's own site or TerpLink page"),
-  email: z.string().nullable().describe('Contact email'),
-  support_url: z.string().nullable().describe('Donation page, if any'),
+  website: z
+    .string()
+    .nullable()
+    .describe("The club's own site or TerpLink page; null when the directory links none"),
+  email: z.string().nullable().describe('Contact email; null when the directory lists none'),
+  support_url: z.string().nullable().describe('Donation page; null when the club has none'),
 });
 
 export type Section = z.infer<typeof sectionSchema>;

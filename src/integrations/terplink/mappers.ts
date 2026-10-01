@@ -1,6 +1,6 @@
 import { decode } from '../../common.js';
 import { htmlToTextOrNull } from '../../lib/html.js';
-import { joinWords, lines, trimmed } from '../../lib/text.js';
+import { collapse, joinWords, lines, trimmed } from '../../lib/text.js';
 import {
   type Article,
   type ArticleSummary,
@@ -56,14 +56,17 @@ export type RawOrganization = {
     preferredFirstName: string | null;
     lastName: string | null;
   } | null;
-  contactInfo: {
-    phoneNumber: string | null;
-    street1: string | null;
-    street2: string | null;
-    city: string | null;
-    state: string | null;
-    zip: string | null;
-  }[];
+  contactInfo:
+    | {
+        phoneNumber: string | null;
+        street1: string | null;
+        street2: string | null;
+        city: string | null;
+        state: string | null;
+        zip: string | null;
+      }[]
+    | null;
+  /** Empty on the detail endpoint; `toOrganization` takes them from the search index instead. */
   categories: RawCategory[];
 };
 
@@ -151,28 +154,29 @@ function imageUrl(path: string | null | undefined): string | null {
 }
 
 export function toCategory({ id, name }: RawCategory): Category {
-  return { id, name };
+  return { id, name: collapse(name) };
 }
 
 export function toOrganizationSummary(raw: RawOrganizationSearch): OrganizationSummary {
   return {
     id: Number(raw.Id),
-    name: raw.Name,
+    name: collapse(raw.Name),
     short_name: trimmed(raw.ShortName),
     website_key: raw.WebsiteKey,
     url: `${SITE}/organization/${raw.WebsiteKey}`,
     summary: trimmed(raw.Summary),
     description: htmlToTextOrNull(raw.Description),
     category_ids: raw.CategoryIds.map(Number),
-    categories: raw.CategoryNames,
+    categories: raw.CategoryNames.map(collapse),
     status: raw.Status,
     image_url: imageUrl(raw.ProfilePicture),
   };
 }
 
-export function toOrganization(raw: RawOrganization): Organization {
+/** `hit` is the organization's search index entry, which is where its categories are. */
+export function toOrganization(raw: RawOrganization, hit?: RawOrganizationSearch): Organization {
   const social = raw.socialMedia ?? {};
-  const contact = raw.contactInfo[0];
+  const contact = raw.contactInfo?.[0];
   const address = lines([
     contact?.street1,
     contact?.street2,
@@ -182,14 +186,15 @@ export function toOrganization(raw: RawOrganization): Organization {
   ]).join(', ');
   return {
     id: raw.id,
-    name: raw.name,
+    name: collapse(raw.name),
     short_name: trimmed(raw.shortName),
     website_key: raw.websiteKey,
     url: `${SITE}/organization/${raw.websiteKey}`,
     summary: trimmed(raw.summary),
     description: htmlToTextOrNull(raw.description),
-    category_ids: raw.categories.map((category) => category.id),
-    categories: raw.categories.map((category) => category.name),
+    category_ids: hit?.CategoryIds.map(Number) ?? raw.categories.map((category) => category.id),
+    categories:
+      hit?.CategoryNames.map(collapse) ?? raw.categories.map((category) => collapse(category.name)),
     status: raw.status,
     image_url: imageUrl(raw.profilePicture),
     email: trimmed(raw.email),
@@ -215,14 +220,14 @@ export function toOrganization(raw: RawOrganization): Organization {
 export function toEventSummary(raw: RawEventSearch): EventSummary {
   return {
     id: Number(raw.id),
-    name: raw.name,
+    name: collapse(raw.name),
     description: htmlToTextOrNull(raw.description),
     location: trimmed(raw.location),
     starts_on: raw.startsOn,
     ends_on: raw.endsOn,
-    organization: { id: raw.organizationId, name: raw.organizationName },
+    organization: { id: raw.organizationId, name: collapse(raw.organizationName) },
     theme: raw.theme,
-    categories: raw.categoryNames,
+    categories: raw.categoryNames.map(collapse),
     benefits: raw.benefitNames,
     rsvp_total: raw.rsvpTotal,
     image_url: imageUrl(raw.imagePath),
@@ -235,15 +240,14 @@ export function toEvent(raw: RawEvent, organizationName: string): Event {
   const rsvp = raw.rsvpSettings;
   return {
     id: raw.id,
-    name: raw.name,
+    name: collapse(raw.name),
     description: htmlToTextOrNull(raw.description),
     starts_on: raw.startsOn,
     ends_on: raw.endsOn,
-    organization: { id: raw.organizationId, name: organizationName },
+    organization: { id: raw.organizationId, name: collapse(organizationName) },
     theme: raw.theme,
-    categories: raw.categories.map((category) => category.name),
+    categories: raw.categories.map((category) => collapse(category.name)),
     benefits: raw.benefits.map((code) => decode(EVENT_BENEFITS, code, 'event benefit')),
-    rsvp_total: rsvp?.totalRsvps ?? 0,
     image_url: trimmed(raw.imageUrl) ?? imageUrl(raw.imagePath),
     url: `${SITE}/event/${raw.id}`,
     address: {
@@ -272,13 +276,13 @@ export function toEvent(raw: RawEvent, organizationName: string): Event {
 export function toArticleSummary(raw: RawArticle): ArticleSummary {
   return {
     id: raw.id,
-    title: raw.title,
+    title: collapse(raw.title),
     summary: trimmed(raw.summary),
     published: raw.createdOn,
     updated: raw.updatedOn,
     organization: {
       id: raw.organization?.id ?? raw.organizationId,
-      name: raw.organization?.name ?? '',
+      name: collapse(raw.organization?.name ?? ''),
       website_key: trimmed(raw.organization?.websiteKey),
     },
     author: joinWords(raw.author?.firstName, raw.author?.lastName),
@@ -294,7 +298,7 @@ export function toArticle(raw: RawArticle): Article {
 export function toServiceOpportunity(raw: RawServiceOpportunity): ServiceOpportunity {
   return {
     id: Number(raw.Id),
-    title: raw.Title,
+    title: collapse(raw.Title),
     description: htmlToTextOrNull(raw.Description),
     sponsor: trimmed(raw.SponsorName),
     starts_on: trimmed(raw.StartsOn),

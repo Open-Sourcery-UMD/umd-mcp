@@ -13,11 +13,17 @@ export type ServiceSpec = {
   name: string;
   /**
    * Page that sends an anonymous browser through single sign-on and back into the app,
-   * e.g. `https://app.testudo.umd.edu/main/`. Cookies are collected for this URL's origin.
+   * e.g. `https://app.testudo.umd.edu/main/`. Cookies are collected for this URL's host.
    */
   loginUrl: string;
   /** For apps whose sign-in is a button: fields POSTed to `loginUrl` as a form once it loads. */
   loginForm?: Record<string, string>;
+  /**
+   * For apps whose sign-in button submits a form the page itself prepares (an anti-forgery
+   * token, a provider field): a CSS selector clicked once `loginUrl` loads, unless the browser
+   * is already signed in.
+   */
+  loginClick?: string;
   /**
    * Whether the browser has landed inside the signed-in app. Defaults to "same origin as
    * `loginUrl`". Override when the app's own sign-in pages share its origin.
@@ -28,6 +34,12 @@ export type ServiceSpec = {
    * (same origin, HTTP 200) rather than to the IdP. Landing on it marks the session expired.
    */
   signInPage?: (url: URL) => boolean;
+  /**
+   * Whether a response means the app no longer accepts the session. Defaults to "401, or a
+   * redirect off the app's origin or to `signInPage`". Override for apps that answer 401 to
+   * ordinary permission failures too.
+   */
+  expired?: (response: Response, requested: URL, landed: URL) => boolean;
 };
 
 /** Whether `url` counts as being inside the app for `spec`. */
@@ -35,27 +47,36 @@ export function isSignedInUrl(spec: ServiceSpec, url: URL): boolean {
   return spec.signedIn?.(url) ?? url.origin === new URL(spec.loginUrl).origin;
 }
 
+/** The default `ServiceSpec.expired`: how most UMD apps reject a stale session. */
+function rejected(spec: ServiceSpec, response: Response, requested: URL, landed: URL): boolean {
+  return (
+    response.status === 401 ||
+    landed.origin !== requested.origin ||
+    (spec.signInPage?.(landed) ?? false)
+  );
+}
+
 /**
  * A signed-in session with one service: a cookie jar seeded from the sign-in browser plus a
  * `fetch` that carries those cookies and keeps any the app sets later (session ids rotate).
  *
- * The session marks itself expired, and throws `AuthRequiredError`, when the app answers 401
- * or redirects off its origin (how most UMD apps bounce to the IdP), or to `spec.signInPage`.
+ * The session marks itself expired, and throws `AuthRequiredError`, once a response fails
+ * `spec.expired` (by default: a 401, or a redirect off the app's origin or to `signInPage`).
  */
 export class Session {
-  readonly jar = new CookieJar();
+  readonly #jar = new CookieJar();
   readonly #fetch: Fetcher;
   #expired = false;
 
   private constructor(readonly spec: ServiceSpec) {
-    this.#fetch = makeFetchCookie(fetch, this.jar);
+    this.#fetch = makeFetchCookie(fetch, this.#jar);
   }
 
   /** Builds a session from cookies harvested from the sign-in browser. */
   static async fromCookies(spec: ServiceSpec, cookies: readonly BrowserCookie[]): Promise<Session> {
     const session = new Session(spec);
     for (const cookie of cookies) {
-      await session.jar.store.putCookie(
+      await session.#jar.store.putCookie(
         new Cookie({
           key: cookie.name,
           value: cookie.value,
@@ -76,30 +97,42 @@ export class Session {
     return this.#expired;
   }
 
-  /** Forgets the session so the next `login` establishes a fresh one. */
-  invalidate(): void {
-    this.#expired = true;
-  }
-
   /** Fetch with the session's cookies. Throws `AuthRequiredError` if the app rejects them. */
   fetch: Fetcher = async (input, init) => {
-    if (this.#expired) {
-      throw new AuthRequiredError(
-        `The ${this.spec.name} session has expired. Call the \`login\` tool to sign in again.`,
-      );
-    }
+    if (this.#expired) throw AuthRequiredError.expired(this.spec.name);
     const requested = new URL(input);
     const res = await this.#fetch(requested, init);
     const landed = new URL(res.url);
-    const bounced = landed.origin !== requested.origin || (this.spec.signInPage?.(landed) ?? false);
-    if (res.status === 401 || bounced) {
+    const expired =
+      this.spec.expired ?? ((response, from, to) => rejected(this.spec, response, from, to));
+    if (expired(res, requested, landed)) {
       this.#expired = true;
-      throw new AuthRequiredError(
-        `${this.spec.name} no longer accepts the session (${
-          res.status === 401 ? 'HTTP 401' : `redirected to ${landed.origin}${landed.pathname}`
-        }). Call the \`login\` tool to sign in again.`,
+      throw AuthRequiredError.expired(
+        this.spec.name,
+        res.status === 401 ? 'HTTP 401' : `redirected to ${landed.origin}${landed.pathname}`,
       );
     }
     return res;
+  };
+}
+
+/**
+ * Memoises a value per `Session`, e.g. a CSRF token or account id read from a page once, and
+ * forgets it when the session is replaced after a new sign-in.
+ */
+export function perSession<T>(
+  compute: (session: Session) => Promise<T>,
+): (session: Session) => Promise<T> {
+  const cache = new WeakMap<Session, Promise<T>>();
+  return (session) => {
+    let value = cache.get(session);
+    if (value === undefined) {
+      value = compute(session).catch((error: unknown) => {
+        cache.delete(session);
+        throw error;
+      });
+      cache.set(session, value);
+    }
+    return value;
   };
 }

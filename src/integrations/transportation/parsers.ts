@@ -1,18 +1,12 @@
 import * as cheerio from 'cheerio';
 import type { CheerioAPI } from 'cheerio';
 import { links, type Selection, text, textOrNull } from '../../lib/scrape.js';
-import type { Alerts, ServiceCalendar } from './schemas.js';
+import { type Alerts, type ServiceCalendar, SITE } from './schemas.js';
 
-const SITE = 'https://transportation.umd.edu';
-
-/** Loads a DOTS page and returns its `<title>` (site suffix dropped) and the node body. */
-function loadPage(html: string): { $: CheerioAPI; title: string; body: Selection } {
+/** Loads a DOTS page and returns the node body. */
+function loadPage(html: string): { $: CheerioAPI; body: Selection } {
   const $ = cheerio.load(html);
-  return {
-    $,
-    title: text($('title')).replace(/\s*\|\s*Transportation Services.*$/i, ''),
-    body: $('main .field--name-body').first(),
-  };
+  return { $, body: $('main .field--name-body').first() };
 }
 
 /** The first `<h2>` in `body` whose text satisfies `matches`. */

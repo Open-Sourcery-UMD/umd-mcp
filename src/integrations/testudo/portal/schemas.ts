@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   courseId,
   delivery,
+  isoDate,
   meetingType,
   postalAddressSchema,
   sectionId,
@@ -40,10 +41,8 @@ const clock = z
 const uid = z.string().nullable().describe('University id');
 
 export const calendarDateSchema = z.object({
-  year: z.number().int(),
-  month: z.number().int().describe('1-12'),
-  day: z.number().int(),
-  weekday,
+  date: isoDate,
+  weekday: weekday.describe('Weekday the date falls on'),
 });
 
 export const termListEntrySchema = z.object({
@@ -72,7 +71,9 @@ export const termSchema = termListEntrySchema.extend({
 });
 
 export const meetingSchema = z.object({
-  type: meetingType,
+  type: meetingType
+    .nullable()
+    .describe('Kind of meeting; null for an activity type the portal does not document'),
   days: z.array(weekday).describe('Days the meeting is held'),
   start_time: clock,
   end_time: clock,
@@ -93,7 +94,7 @@ export const meetingSchema = z.object({
 
 export const scheduledCourseSchema = z.object({
   course: courseId,
-  section: sectionId,
+  section: sectionId.nullable(),
   title: z.string().nullable().describe('Course title'),
   credits: z.number().nullable().describe('Credits the section is worth'),
   delivery: delivery
@@ -192,6 +193,11 @@ export const profileSchema = z.object({
     .nullable(),
 });
 
+export const blockSchema = z.object({
+  code: z.string().nullable().describe('Block code as the portal abbreviates it'),
+  description: z.string().nullable().describe('Block in words'),
+});
+
 export const registrationAppointmentSchema = z.object({
   uid,
   student_type: z.string().nullable().describe('e.g. "Undergraduate"'),
@@ -212,17 +218,13 @@ export const registrationAppointmentSchema = z.object({
     .nullable()
     .describe('When the next appointment date will be published, if the portal announces one'),
   blocks: z
-    .array(z.unknown())
+    .array(blockSchema)
     .describe('Registration blocks on the account as the portal lists them; empty when none'),
   current_term: termListEntrySchema.nullable(),
   registration_term: termListEntrySchema.nullable().describe('Term the appointment registers for'),
   previous_registration_term: termListEntrySchema.nullable(),
   next_registration_term: termListEntrySchema.nullable(),
 });
-
-export const blockSchema = z
-  .object({ code: z.string().nullable(), description: z.string().nullable() })
-  .nullable();
 
 export const documentRequestSchema = z.object({
   confirmation_number: z.string().nullable(),
@@ -238,8 +240,10 @@ export const documentRequestSchema = z.object({
 export const requestStatusSchema = z.object({
   blocks: z
     .object({
-      judicial: blockSchema.describe('Judicial (student conduct) block; null when none'),
-      financial: blockSchema.describe('Financial (unpaid balance) block; null when none'),
+      judicial: blockSchema.nullable().describe('Judicial (student conduct) block; null when none'),
+      financial: blockSchema
+        .nullable()
+        .describe('Financial (unpaid balance) block; null when none'),
     })
     .describe('Blocks that prevent transcript and certification requests'),
   transcript_requests: z

@@ -10,7 +10,6 @@ import {
   parseSections,
   parseSyllabi,
   parseTerms,
-  type SearchArgs,
   searchQuery,
   SOC_URL,
 } from './parsers.js';
@@ -19,13 +18,13 @@ import {
   buildingCode,
   buildingSchema,
   clockTime,
-  COURSE_LEVELS,
+  courseLevel,
   type CourseOffering,
   courseOfferingSchema,
   coursePrefix,
   type CourseSuggestion,
   courseSuggestionSchema,
-  CREDIT_COMPARISONS,
+  creditComparison,
   type Department,
   type DepartmentCourses,
   departmentCoursesSchema,
@@ -38,6 +37,7 @@ import {
   type InstructorSuggestion,
   instructorSuggestionSchema,
   type Listing,
+  type SearchArgs,
   type SearchResults,
   searchResultsSchema,
   type Section,
@@ -46,9 +46,10 @@ import {
   syllabusSchema,
   type TeachingCenter,
   teachingCenter,
+  teachingCenterOrAll,
   type Term,
   termSchema,
-  TIME_COMPARISONS,
+  timeComparison,
 } from './schemas.js';
 
 /** Every course of a listing, department grouping flattened. */
@@ -209,25 +210,14 @@ export class ScheduleOfClasses extends Integration {
         .max(4)
         .optional()
         .describe('Only courses whose credits satisfy credits_compare against this value, 0-4'),
-      credits_compare: z
-        .enum(CREDIT_COMPARISONS)
-        .default('=')
-        .describe('How to compare course credits with `credits` (default "=")'),
-      level: z
-        .enum(COURSE_LEVELS)
-        .default('ALL')
-        .describe('Only undergraduate ("UGRAD") or graduate ("GRAD") courses (default "ALL")'),
+      credits_compare: creditComparison,
+      level: courseLevel,
       delivery: z
         .array(delivery)
         .min(1)
         .optional()
         .describe('Only sections taught in these ways (default: any)'),
-      time_compare: z
-        .enum(TIME_COMPARISONS)
-        .optional()
-        .describe(
-          'Only sections whose meetings start "after", "at" or "before" start_time, or "between" start_time and end_time',
-        ),
+      time_compare: timeComparison,
       start_time: clockTime
         .optional()
         .describe('Time for time_compare, on the quarter hour, e.g. "12:00 PM" or "9:30 AM"'),
@@ -239,7 +229,7 @@ export class ScheduleOfClasses extends Integration {
         .min(1)
         .optional()
         .describe('Only sections that meet on these weekdays'),
-      teaching_center: teachingCenter.default('ALL'),
+      teaching_center: teachingCenterOrAll,
     },
     output: searchResultsSchema.shape,
   })
