@@ -10,24 +10,6 @@ export const DINING_HALLS = {
 
 export type DiningHall = keyof typeof DINING_HALLS;
 
-export const diningHall = z
-  .enum(Object.keys(DINING_HALLS) as DiningHall[])
-  .describe('Dining hall to get the menu for');
-
-export const menuDate = isoDate
-  .optional()
-  .describe(
-    'Day to get the menu for, as YYYY-MM-DD (default: today). Menus are posted about a week ahead.',
-  );
-
-export const recipeId = z
-  .string()
-  .trim()
-  .regex(/^\d+\*\d+(?:\s*\d+)?(?:\/\d+)?$/, 'Expected a recipe id like 060064*2')
-  .describe(
-    'Recipe identifier from a menu item, e.g. "060064*2"; the portion after the "*" can be a fraction, e.g. "150313*1/4" or "040065*4 1/2"',
-  );
-
 /** Allergens the menu icons flag, keyed by the icon's "Contains ..." word in lower case. */
 export const ALLERGENS = {
   dairy: 'dairy',
@@ -58,6 +40,24 @@ export const DIETARY_LABELS = {
 export type DietaryLabel = (typeof DIETARY_LABELS)[keyof typeof DIETARY_LABELS];
 
 export const dietaryLabel = z.enum(Object.values(DIETARY_LABELS) as DietaryLabel[]);
+
+export const diningHall = z
+  .enum(Object.keys(DINING_HALLS) as DiningHall[])
+  .describe('Dining hall to get the menu for');
+
+export const menuDate = isoDate
+  .optional()
+  .describe(
+    'Day to get the menu for, as YYYY-MM-DD (default: today). Menus are posted about a week ahead.',
+  );
+
+export const recipeId = z
+  .string()
+  .trim()
+  .regex(/^\d+\*\d+(?:\s*\d+)?(?:\/\d+)?$/, 'Expected a recipe id like 060064*2')
+  .describe(
+    'Recipe identifier from a menu item, e.g. "060064*2"; the portion after the "*" can be a fraction, e.g. "150313*1/4" or "040065*4 1/2"',
+  );
 
 export const menuItemSchema = z.object({
   name: z.string().describe('Name of the dish, e.g. "Pancakes Plain"'),

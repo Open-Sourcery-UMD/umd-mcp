@@ -8,10 +8,6 @@ export const AFFILIATIONS = {
   student: 'umStudent',
 } as const;
 
-export type Affiliation = keyof typeof AFFILIATIONS;
-
-export const affiliation = z.enum(Object.keys(AFFILIATIONS) as Affiliation[]);
-
 /** Institutions the directory covers, keyed by the code the form takes. */
 export const INSTITUTIONS = {
   UMCP: 'University of Maryland, College Park',
@@ -20,13 +16,15 @@ export const INSTITUTIONS = {
   UMCES: 'University of Maryland Center for Environmental Science',
 } as const;
 
-export type Institution = keyof typeof INSTITUTIONS;
+export const affiliation = z.enum(Object.keys(AFFILIATIONS) as (keyof typeof AFFILIATIONS)[]);
 
-export const institution = z.enum(Object.keys(INSTITUTIONS) as Institution[]).describe(
-  `Institution code: ${Object.entries(INSTITUTIONS)
-    .map(([code, name]) => `"${code}" ${name}`)
-    .join(', ')}`,
-);
+export const institution = z
+  .enum(Object.keys(INSTITUTIONS) as (keyof typeof INSTITUTIONS)[])
+  .describe(
+    `Institution code: ${Object.entries(INSTITUTIONS)
+      .map(([code, name]) => `"${code}" ${name}`)
+      .join(', ')}`,
+  );
 
 export const directoryId = z
   .string()
@@ -43,17 +41,22 @@ export const personSchema = z.object({
     .string()
     .nullable()
     .describe('UMD Directory ID (local part of a @umd.edu email); null for other institutions'),
-  email: z.string().nullable().describe('Email address; null if not published'),
-  institution: z.string().nullable().describe('e.g. "University of Maryland, College Park"'),
-  title: z.string().nullable().describe('Job title, e.g. "Research Scientist"; null if none'),
+  email: z.string().nullable().describe('Email address; null when not published'),
+  institution: z
+    .string()
+    .nullable()
+    .describe('e.g. "University of Maryland, College Park"; null when not listed'),
+  title: z.string().nullable().describe('Job title, e.g. "Research Scientist"; null when none'),
   department: z
     .string()
     .nullable()
-    .describe('Department as "DIVISION-Department", e.g. "CMNS-Computer Science"'),
+    .describe(
+      'Department as "DIVISION-Department", e.g. "CMNS-Computer Science"; null when not listed',
+    ),
   address: z
     .array(z.string())
-    .describe('Office address lines (building, street, city); empty if not published'),
-  phone: z.string().nullable().describe('Work phone, e.g. "+1 301 405 5803"; null if none'),
+    .describe('Office address lines (building, street, city); empty when not published'),
+  phone: z.string().nullable().describe('Work phone, e.g. "+1 301 405 5803"; null when none'),
 });
 
 export const searchResultsSchema = z.object({
@@ -72,5 +75,7 @@ export const searchResultsSchema = z.object({
   people: z.array(personSchema).describe('Matching people in the order the directory lists them'),
 });
 
+export type Affiliation = z.infer<typeof affiliation>;
+export type Institution = z.infer<typeof institution>;
 export type Person = z.infer<typeof personSchema>;
 export type SearchResults = z.infer<typeof searchResultsSchema>;

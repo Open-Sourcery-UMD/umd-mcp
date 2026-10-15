@@ -6,6 +6,7 @@ import {
   type Delivery,
   DELIVERY_METHODS,
   type MeetingType,
+  member,
   type Weekday,
   weekdayOf,
 } from '../../../common.js';
@@ -31,6 +32,7 @@ import type {
   Term,
   TermListEntry,
 } from './schemas.js';
+import { WINDOWS } from './schemas.js';
 
 /** A term as the non-schedule/grades lists describe it. */
 export type RawTermRef = { termId: string; termName: string };
@@ -41,8 +43,19 @@ export type RawDate = { year?: number; month?: number; day?: number };
 export type RawTerm = {
   id?: string;
   name?: string;
-  status?: Term['status'];
-  dates?: Partial<Record<keyof Term['dates'], RawDate | null>>;
+  status?: { schedAdjust?: string; registration?: string; gradApp?: string } | null;
+  dates?: Partial<
+    Record<
+      | 'lastDayAdjust'
+      | 'lastDayCheckin'
+      | 'lastDayTerm'
+      | 'startAdvReg'
+      | 'startOfClass'
+      | 'startTerm'
+      | 'today',
+      RawDate | null
+    >
+  >;
 };
 
 /** The portal's one-letter day codes. */
@@ -273,16 +286,24 @@ function toCalendarDate(raw: RawDate | null | undefined): CalendarDate | null {
 
 export function toTerm(raw: RawTerm): Term {
   const dates = raw.dates ?? {};
+  const status = raw.status ?? null;
   return {
     ...toTermListEntry(raw),
-    status: raw.status ?? null,
+    status:
+      status === null
+        ? null
+        : {
+            schedule_adjustment: member(WINDOWS, status.schedAdjust, 'schedule adjustment window'),
+            registration: member(WINDOWS, status.registration, 'registration window'),
+            graduation_application: member(WINDOWS, status.gradApp, 'graduation window'),
+          },
     dates: {
-      lastDayAdjust: toCalendarDate(dates.lastDayAdjust),
-      lastDayCheckin: toCalendarDate(dates.lastDayCheckin),
-      lastDayTerm: toCalendarDate(dates.lastDayTerm),
-      startAdvReg: toCalendarDate(dates.startAdvReg),
-      startOfClass: toCalendarDate(dates.startOfClass),
-      startTerm: toCalendarDate(dates.startTerm),
+      term_starts: toCalendarDate(dates.startTerm),
+      classes_start: toCalendarDate(dates.startOfClass),
+      advance_registration_starts: toCalendarDate(dates.startAdvReg),
+      last_day_to_adjust: toCalendarDate(dates.lastDayAdjust),
+      last_day_to_check_in: toCalendarDate(dates.lastDayCheckin),
+      term_ends: toCalendarDate(dates.lastDayTerm),
       today: toCalendarDate(dates.today),
     },
   };

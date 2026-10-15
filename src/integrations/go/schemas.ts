@@ -108,7 +108,6 @@ export const collectionSchema = z.object({
 export const memberSchema = z.object({
   id: z.number().int().describe('User id, for go_remove_collection_member'),
   name: z.string().describe('Full name'),
-  email: z.string().nullable().describe('Email address; null when unknown'),
 });
 
 export const userSchema = z.object({

@@ -90,7 +90,9 @@ export class Directory extends Integration {
       sounds_like: z
         .boolean()
         .default(false)
-        .describe('Also match last names that sound like the query, e.g. "Pynes" for Pines'),
+        .describe(
+          'Also match last names that sound like the query, e.g. "Pynes" for Pines (default false)',
+        ),
     },
     output: searchResultsSchema.shape,
   })

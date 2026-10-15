@@ -13,6 +13,18 @@ export function today(): string {
 /** A calendar date as YYYY-MM-DD. Tools that take one should `.describe()` what the date selects. */
 export const isoDate = z.iso.date('Expected a date like 2026-09-29').describe('Date as YYYY-MM-DD');
 
+/**
+ * A moment as the site prints it in College Park local time, without an offset. `what` says
+ * which moment (and, for a nullable field, when it is null); the format is appended.
+ */
+export function localDateTime(what: string) {
+  return z
+    .string()
+    .describe(
+      `${what}, as ISO 8601 in College Park local time, without an offset, e.g. "2026-10-15T19:30:00"`,
+    );
+}
+
 export const term = z
   .string()
   .trim()
@@ -46,7 +58,7 @@ export const WEEKDAYS = ['M', 'Tu', 'W', 'Th', 'F', 'Sa', 'Su'] as const;
 
 export type Weekday = (typeof WEEKDAYS)[number];
 
-export const weekday = z.enum(WEEKDAYS);
+export const weekday = z.enum(WEEKDAYS).describe('Day of the week');
 
 /** Weekdays as `Date#getDay` numbers them. */
 const WEEKDAYS_SUNDAY_FIRST: readonly Weekday[] = ['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa'];

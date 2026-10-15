@@ -1,6 +1,8 @@
+import { format, isValid, parse } from 'date-fns';
 import { omit } from 'lodash-es';
 import { z } from 'zod';
 import { courseId, delivery, departmentCode, schoolDay, sectionId, term } from '../../../common.js';
+import type { Query } from '../../../lib/http.js';
 import { Integration, tool } from '../../base.js';
 import {
   parseBuilding,
@@ -10,7 +12,6 @@ import {
   parseSections,
   parseSyllabi,
   parseTerms,
-  searchQuery,
   SOC_URL,
 } from './parsers.js';
 import {
@@ -60,6 +61,47 @@ function coursesOf(listing: Listing) {
 /** The site path of one course's page in a term. */
 function coursePath(termId: string, courseCode: string): string {
   return `${termId}/${courseCode.slice(0, 4)}/${courseCode}`;
+}
+
+/** Splits "12:00 PM" into the hour, minute and AM/PM fields the search form posts. */
+function splitClockTime(value: string | undefined): [string, string, string] {
+  if (value === undefined) return ['', '', ''];
+  const time = parse(value.trim().replace(/(am|pm)$/i, ' $1'), 'h:mm a', new Date(0));
+  if (!isValid(time)) return ['', '', ''];
+  return [format(time, 'hh'), format(time, 'mm'), format(time, 'a')];
+}
+
+/** The query string the site's search form submits for `args`; empty fields are always sent. */
+function searchQuery(args: SearchArgs): Query {
+  const [startHour, startMin, startAM] = splitClockTime(args.start_time);
+  const [endHour, endMin, endAM] = splitClockTime(args.end_time);
+  const flag = (on: boolean | undefined): true | undefined => (on === true ? true : undefined);
+  return {
+    termId: args.term_id,
+    courseId: args.course_id ?? '',
+    sectionId: args.section_id ?? '',
+    instructor: args.instructor ?? '',
+    openSectionsOnly: flag(args.open_sections_only),
+    creditCompare: args.credits === undefined ? '' : args.credits_compare,
+    credits: args.credits === undefined ? '' : args.credits.toFixed(1),
+    courseLevelFilter: args.level,
+    facetoface: flag(args.delivery?.includes('face_to_face')),
+    blended: flag(args.delivery?.includes('blended')),
+    online: flag(args.delivery?.includes('online')),
+    courseStartCompare: args.time_compare ?? '',
+    courseStartHour: startHour,
+    courseStartMin: startMin,
+    courseStartAM: startAM,
+    courseEndHour: endHour,
+    courseEndMin: endMin,
+    courseEndAM: endAM,
+    teachingCenter: args.teaching_center,
+    classDay1: flag(args.days?.includes('M')),
+    classDay2: flag(args.days?.includes('Tu')),
+    classDay3: flag(args.days?.includes('W')),
+    classDay4: flag(args.days?.includes('Th')),
+    classDay5: flag(args.days?.includes('F')),
+  };
 }
 
 export class ScheduleOfClasses extends Integration {
@@ -364,7 +406,7 @@ export class ScheduleOfClasses extends Integration {
   @tool({
     title: 'List syllabi',
     description:
-      'Past syllabi on file for a course in the UMD Schedule of Classes syllabus repository: the term and instructor of each. The PDFs themselves need a UMD login. No login needed for the list.',
+      'Past syllabi on file for a course in the UMD Schedule of Classes syllabus repository: the term and instructor of each, with a link to the PDF (which opens only after a UMD login in the browser). No login needed.',
     input: { term_id: term, course_id: courseId },
     output: {
       syllabi: z

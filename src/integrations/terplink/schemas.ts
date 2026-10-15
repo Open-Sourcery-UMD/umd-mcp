@@ -59,6 +59,8 @@ const publicPage = z.string().describe('Public TerpLink page');
 
 const isoTimestamp = z.string().describe('ISO 8601 timestamp');
 
+const socialLink = (what: string) => z.string().nullable().describe(`${what}; null when none`);
+
 export const categorySchema = z.object({
   id: z.number().int().describe('Category id, usable as a filter'),
   name: z.string().describe('Category name, e.g. "Cultural/Ethnic"'),
@@ -67,37 +69,42 @@ export const categorySchema = z.object({
 export const organizationSummarySchema = z.object({
   id: z.number().int().describe('Organization id'),
   name: z.string().describe('Organization name'),
-  short_name: z.string().nullable().describe('Abbreviation or nickname'),
+  short_name: z.string().nullable().describe('Abbreviation or nickname; null when none'),
   website_key: z
     .string()
     .describe('Pass to terplink_get_organization; the last part of the public URL'),
   url: publicPage,
-  summary: z.string().nullable().describe('One-paragraph summary'),
-  description: z.string().nullable().describe('Full description as plain text'),
+  summary: z.string().nullable().describe('One-paragraph summary; null when none'),
+  description: z.string().nullable().describe('Full description as plain text; null when none'),
   category_ids: z.array(z.number().int()).describe('Ids of the categories the organization is in'),
   categories: z.array(z.string()).describe('Category names, e.g. "SGA Recognized"'),
   // Open value set: only "Active" was observed, but the API does not document the others.
   status: z.string().describe('Registration status, e.g. "Active"'),
-  image_url: z.string().nullable().describe('Profile picture'),
+  image_url: z.string().nullable().describe('Profile picture; null when none'),
 });
 
 export const organizationSchema = organizationSummarySchema.extend({
-  email: z.string().nullable().describe('Contact email'),
-  type: z.string().nullable().describe('e.g. "Registered Student Organization - Spring"'),
-  started: isoTimestamp.nullable().describe('When the organization was registered'),
-  primary_contact: z.string().nullable().describe('Name of the primary contact'),
+  email: z.string().nullable().describe("The organization's contact email; null when none"),
+  type: z
+    .string()
+    .nullable()
+    .describe('Organization type, e.g. "Registered Student Organization - Spring"; null when none'),
+  started: isoTimestamp
+    .nullable()
+    .describe('When the organization was registered; null when not given'),
+  primary_contact: z.string().nullable().describe('Name of the primary contact; null when none'),
   social_media: z
     .object({
-      website: z.string().nullable(),
-      facebook: z.string().nullable(),
-      instagram: z.string().nullable(),
-      twitter: z.string().nullable(),
-      linkedin: z.string().nullable(),
-      youtube: z.string().nullable(),
+      website: socialLink('Website'),
+      facebook: socialLink('Facebook page'),
+      instagram: socialLink('Instagram profile'),
+      twitter: socialLink('X (Twitter) profile'),
+      linkedin: socialLink('LinkedIn page'),
+      youtube: socialLink('YouTube channel'),
     })
-    .describe('Links the organization lists; null where none'),
-  phone: z.string().nullable().describe('Contact phone'),
-  address: z.string().nullable().describe('Mailing address on one line'),
+    .describe('Links the organization lists'),
+  phone: z.string().nullable().describe("The organization's contact phone; null when none"),
+  address: z.string().nullable().describe('Mailing address on one line; null when none'),
 });
 
 const eventHost = z
@@ -110,8 +117,11 @@ const eventHost = z
 export const eventSummarySchema = z.object({
   id: z.number().int().describe('Event id, for terplink_get_event'),
   name: z.string().describe('Event name'),
-  description: z.string().nullable().describe('Description as plain text'),
-  location: z.string().nullable().describe('Location as entered, e.g. "Stamp 1234" or "Online"'),
+  description: z.string().nullable().describe('Description as plain text; null when none'),
+  location: z
+    .string()
+    .nullable()
+    .describe('Location as entered, e.g. "Stamp 1234" or "Online"; null when none'),
   starts_on: isoTimestamp.describe('Start, ISO 8601'),
   ends_on: isoTimestamp.describe('End, ISO 8601'),
   organization: eventHost,
@@ -119,18 +129,30 @@ export const eventSummarySchema = z.object({
   categories: z.array(z.string()).describe('Category names'),
   benefits: z.array(eventBenefit).describe('Perks advertised, e.g. "Free Food"'),
   rsvp_total: z.number().int().describe('RSVPs so far'),
-  image_url: z.string().nullable().describe('Event image'),
+  image_url: z.string().nullable().describe('Event image; null when none'),
   url: publicPage,
 });
 
 export const eventAddressSchema = postalAddressSchema
   .extend({
-    name: z.string().nullable().describe('Venue name, e.g. "Online" or a building'),
-    latitude: z.number().nullable(),
-    longitude: z.number().nullable(),
-    online_location: z.string().nullable().describe('Meeting link for online events'),
-    instructions: z.string().nullable().describe('Directions or joining instructions'),
-    provider: z.string().nullable().describe('Online meeting provider, e.g. "Zoom"'),
+    name: z
+      .string()
+      .nullable()
+      .describe('Venue name, e.g. "Online" or a building; null when not given'),
+    latitude: z.number().nullable().describe('Latitude of the venue; null when not given'),
+    longitude: z.number().nullable().describe('Longitude of the venue; null when not given'),
+    online_location: z
+      .string()
+      .nullable()
+      .describe('Meeting link for online events; null when none'),
+    instructions: z
+      .string()
+      .nullable()
+      .describe('Directions or joining instructions; null when none'),
+    provider: z
+      .string()
+      .nullable()
+      .describe('Online meeting provider, e.g. "Zoom"; null when none'),
   })
   .describe('Where the event is held');
 
@@ -152,37 +174,43 @@ export const eventSchema = eventSummarySchema.omit({ location: true, rsvp_total:
 export const articleSummarySchema = z.object({
   id: z.number().int().describe('Article id, for terplink_get_article'),
   title: z.string().describe('Headline'),
-  summary: z.string().nullable().describe('Teaser text'),
+  summary: z.string().nullable().describe('Teaser text; null when none'),
   published: isoTimestamp.describe('When the article was posted'),
   updated: isoTimestamp.describe('When the article was last edited'),
   organization: z
     .object({
       id: z.number().int().describe('Organization id'),
       name: z.string().describe('Organization name'),
-      website_key: z.string().nullable().describe('Pass to terplink_get_organization'),
+      website_key: z
+        .string()
+        .nullable()
+        .describe('Pass to terplink_get_organization; null when not given'),
     })
     .describe('The organization that posted the article'),
-  author: z.string().nullable().describe('Author name'),
-  image_url: z.string().nullable().describe('Cover image'),
+  author: z.string().nullable().describe('Author name; null when not given'),
+  image_url: z.string().nullable().describe('Cover image; null when none'),
   url: publicPage,
 });
 
 export const articleSchema = articleSummarySchema.extend({
-  body: z.string().nullable().describe('Article body as plain text'),
+  body: z.string().nullable().describe('Article body as plain text; null when empty'),
 });
 
 export const serviceOpportunitySchema = z.object({
   id: z.number().int().describe('Opportunity id'),
   title: z.string().describe('Listing title'),
-  description: z.string().nullable().describe('Teaser text'),
-  sponsor: z.string().nullable().describe('Organization offering the opportunity'),
-  starts_on: isoTimestamp.nullable().describe('Start, when scheduled'),
-  ends_on: isoTimestamp.nullable().describe('End, when scheduled'),
-  type: z.string().nullable().describe('e.g. "Volunteer"'),
+  description: z.string().nullable().describe('Teaser text; null when none'),
+  sponsor: z
+    .string()
+    .nullable()
+    .describe('Organization offering the opportunity; null when not given'),
+  starts_on: isoTimestamp.nullable().describe('Start; null when not scheduled'),
+  ends_on: isoTimestamp.nullable().describe('End; null when not scheduled'),
+  type: z.string().nullable().describe('Opportunity type, e.g. "Volunteer"; null when not given'),
   causes: z.array(z.string()).describe('Causes the listing is tagged with'),
   skills: z.array(z.string()).describe('Skills the listing asks for'),
-  image_url: z.string().nullable().describe('Listing image'),
-  url: z.string().nullable().describe('Listing on GivePulse'),
+  image_url: z.string().nullable().describe('Listing image; null when none'),
+  url: z.string().nullable().describe('Listing on GivePulse; null when not given'),
 });
 
 export const organizationSearchSchema = {

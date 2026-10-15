@@ -7,6 +7,13 @@ import { cookieFetcher, type Fetcher } from '../../../lib/http.js';
 import { Integration, tool } from '../../base.js';
 import { EMPTY_GUID, type PriceRange, SITE, toPriceRange } from '../common.js';
 import {
+  type RawAppointmentInfo,
+  type RawPrices,
+  type RawSchedulerAppointment,
+  toAppointment,
+  toInstance,
+} from './mappers.js';
+import {
   parseCalendarEvents,
   parseCalendars,
   parseFacilities,
@@ -18,11 +25,6 @@ import {
   parseProgramList,
   parseProgramPage,
   parseSearchToken,
-  type RawAppointmentInfo,
-  type RawPrices,
-  type RawSchedulerAppointment,
-  toAppointment,
-  toInstance,
 } from './parsers.js';
 import {
   type Appointment,
@@ -228,7 +230,7 @@ export class ActiveTerp extends Integration {
       semester_id === undefined ? semesters[0] : semesters.find((s) => s.id === semester_id);
     if (semester === undefined) {
       if (semester_id === undefined) return { semester: null, offerings: [] };
-      throw new Error(`activeterp: program ${program_id} has no semester ${semester_id}`);
+      throw new Error(`${this.name}: program ${program_id} has no semester ${semester_id}`);
     }
     const cards = parseOfferings(
       await this.getText('Program/GetOfferingsForSemester', {

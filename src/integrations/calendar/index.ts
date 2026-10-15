@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { isoDate, pagination } from '../../common.js';
 import { getText } from '../../lib/http.js';
+import { matchesQuery } from '../../lib/text.js';
 import { Integration, tool } from '../base.js';
 import {
   parseAcademicCalendar,
@@ -176,13 +177,9 @@ export class Calendar extends Integration {
   }: {
     year?: string | undefined;
   }): Promise<{ years: AcademicYear[] }> {
-    const years = parseAcademicCalendar(await getText(PROVOST_SITE, 'calendar.md'));
-    const needle = year?.toLowerCase();
-    return {
-      years:
-        needle === undefined
-          ? years
-          : years.filter((candidate) => candidate.name.toLowerCase().includes(needle)),
-    };
+    const years = parseAcademicCalendar(
+      await getText(PROVOST_SITE, 'calendar.md', {}, this.fetcher),
+    );
+    return { years: years.filter((candidate) => matchesQuery(year, candidate.name)) };
   }
 }

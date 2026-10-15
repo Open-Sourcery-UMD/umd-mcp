@@ -2,7 +2,8 @@ import Parser from 'rss-parser';
 import { z } from 'zod';
 import { getJson, HttpError } from '../../lib/http.js';
 import { Integration, tool } from '../base.js';
-import { parseDiningCalendar, toBusyMeter, toNewsItem } from './parsers.js';
+import { toBusyMeter, toNewsItem } from './mappers.js';
+import { parseDiningCalendar } from './parsers.js';
 import {
   type BusyMeter,
   busyMeterSchema,
@@ -32,7 +33,7 @@ export class Dining extends Integration {
   async get_busy_meter(): Promise<BusyMeter> {
     const unavailable = (reason: string): BusyMeter => ({ available: false, reason, halls: [] });
     try {
-      return toBusyMeter(await getJson(BUSY_METER_ORIGIN, BUSY_METER_PATH));
+      return toBusyMeter(await getJson(BUSY_METER_ORIGIN, BUSY_METER_PATH, {}, this.fetcher));
     } catch (error) {
       // A non-2xx answer, an unreachable host or a non-JSON body all mean the service is
       // down, which the tool reports as data rather than as a failure.

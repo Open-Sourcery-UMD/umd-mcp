@@ -84,7 +84,7 @@ export class PlanetTerp extends Integration {
       type: professorType
         .optional()
         .describe(
-          'Only list professors ("professor") or teaching assistants ("ta"); default: both',
+          'Only list professors ("professor") or teaching assistants ("ta") (default: both)',
         ),
       ...pagination(100),
     },

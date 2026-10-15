@@ -119,11 +119,11 @@ export class Athletics extends Integration {
 
   /** The schedule id of a sport's current season. */
   private async currentScheduleId(sportId: number): Promise<number> {
-    const sport = await this.get<RawSport>(`Sports/${sportId}`);
-    if (sport.scheduleId == null) {
+    const { schedule_id } = toSport(await this.get<RawSport>(`Sports/${sportId}`));
+    if (schedule_id === null) {
       throw new Error(`${this.name}: sport ${sportId} has no current schedule`);
     }
-    return sport.scheduleId;
+    return schedule_id;
   }
 
   @tool({

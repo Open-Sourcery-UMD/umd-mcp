@@ -120,12 +120,14 @@ export const gradesSchema = z.object({
 });
 
 export const searchResultSchema = z.object({
-  name: z.string().describe('Course code (e.g. "CMSC131") or professor name'),
-  slug: z
+  name: z
     .string()
     .describe(
-      'Identifier to pass to planetterp_get_course or planetterp_get_professor; equals the name for courses',
+      'Course code (e.g. "CMSC131") or professor name, to pass to planetterp_get_course or planetterp_get_professor',
     ),
+  slug: z
+    .string()
+    .describe("PlanetTerp's unique identifier for the result; equals the name for courses"),
   type: z.enum(['professor', 'course']).describe('Whether this result is a professor or a course'),
 });
 

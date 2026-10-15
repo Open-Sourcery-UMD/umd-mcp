@@ -1,6 +1,5 @@
 import * as cheerio from 'cheerio';
 import type { CheerioAPI } from 'cheerio';
-import { format, parseISO } from 'date-fns';
 import splitString from 'split-string';
 import { decode } from '../../common.js';
 import { type Selection, text } from '../../lib/scrape.js';
@@ -19,11 +18,6 @@ import {
 
 /** split-string's types declare a default export that its CommonJS build does not have. */
 const split = splitString as unknown as typeof splitString.default;
-
-/** Converts YYYY-MM-DD into the MM/DD/YYYY form the site's date picker submits. */
-export function toSiteDate(date: string): string {
-  return format(parseISO(date), 'MM/dd/yyyy');
-}
 
 /**
  * Parses one dish row. The dish name links to its nutrition label, whose query string carries

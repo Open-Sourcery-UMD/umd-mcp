@@ -1,6 +1,8 @@
 import { z } from 'zod';
-import { isoDate, weekday } from '../../../common.js';
+import { isoDate, localDateTime, weekday } from '../../../common.js';
 import { guid, priceMax, priceMin } from '../common.js';
+
+export const SCHEDULE_TYPES = ['offerings', 'instances'] as const;
 
 export const programId = guid.describe('Program id');
 
@@ -16,19 +18,11 @@ export const calendarId = guid.describe('Calendar id');
 
 export const searchQuery = z.string().trim().min(1).describe('Text to search for, e.g. "yoga"');
 
-export const SCHEDULE_TYPES = ['offerings', 'instances'] as const;
-
-export type ScheduleType = (typeof SCHEDULE_TYPES)[number];
-
 export const scheduleType = z
   .enum(SCHEDULE_TYPES)
   .describe(
     '"offerings" when the program is registered for by offering, a dated session or series within a semester (see activeterp_list_program_offerings); "instances" when it is booked by time slot (see activeterp_list_program_instances)',
   );
-
-const localDateTime = z
-  .string()
-  .describe('ISO 8601 in College Park local time, without an offset, e.g. "2026-10-01T14:00:00"');
 
 const spotsAvailable = z
   .number()
@@ -117,8 +111,8 @@ export const offeringsSchema = z.object({
 
 export const instanceSchema = z.object({
   id: z.string().describe('Appointment id'),
-  start: localDateTime,
-  end: localDateTime,
+  start: localDateTime('When the session starts'),
+  end: localDateTime('When the session ends'),
   location: z.string().describe('e.g. "Cycling Studio"'),
   instructor: z
     .string()
@@ -151,29 +145,20 @@ export const facilityHoursSchema = z.object({
   hours: z.string().describe('e.g. "7:00 AM - 11:00 PM", or "Closed"'),
 });
 
-export const facilitySchema = z.object({
-  id: z.string().describe('Facility id'),
-  name: z.string().describe('e.g. "Main PC Bay"'),
-  parent: z
-    .string()
-    .nullable()
-    .describe(
-      'The facility this one is part of, e.g. "Terps Esports Center"; null at the top level',
-    ),
+export const facilitySchema = facilitySummarySchema.extend({
   description: z.string().nullable().describe('Description as plain text; null when none'),
   type: z.string().nullable().describe('Facility type, e.g. "Esports"; null when not set'),
   area: z.string().nullable().describe('Area within the building; null when the site says N/A'),
   max_occupancy: z.number().int().describe('Maximum occupancy; 0 when not set'),
   hours: z.array(facilityHoursSchema).describe('Regular hours, Sunday first'),
-  url: z.string().describe('Facility page'),
 });
 
 export const appointmentSchema = z.object({
   id: z.string().describe('Appointment id'),
   title: z.string().describe('e.g. "Main PC Bay (Peripherals Provided)"'),
-  start: localDateTime,
-  end: localDateTime,
-  all_day: z.boolean(),
+  start: localDateTime('When the booking starts'),
+  end: localDateTime('When the booking ends'),
+  all_day: z.boolean().describe('true when the booking has no clock time'),
   description: z.string().nullable().describe('null when empty'),
   recurrence_rule: z
     .string()
@@ -194,11 +179,12 @@ export const calendarSchema = z.object({
 export const calendarEventSchema = z.object({
   id: z.string().describe('Appointment id'),
   date: isoDate,
-  weekday,
+  weekday: weekday.describe('Weekday the date falls on'),
   time: z.string().describe('Start time as printed, e.g. "4:00 PM"'),
   title: z.string().describe('e.g. "Rhythm Ride 45"'),
 });
 
+export type ScheduleType = z.infer<typeof scheduleType>;
 export type Classification = z.infer<typeof classificationSchema>;
 export type ProgramFilters = z.infer<typeof programFiltersSchema>;
 export type ProgramList = z.infer<typeof programListSchema>;

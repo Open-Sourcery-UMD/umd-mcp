@@ -1,6 +1,7 @@
+import { format, parseISO } from 'date-fns';
 import { z } from 'zod';
 import { Integration, tool } from '../base.js';
-import { parseMenu, parseRecipe, toSiteDate } from './parsers.js';
+import { parseMenu, parseRecipe } from './parsers.js';
 import {
   DINING_HALLS,
   type DiningHall,
@@ -12,6 +13,11 @@ import {
   recipeId,
   recipeSchema,
 } from './schemas.js';
+
+/** Converts YYYY-MM-DD into the MM/DD/YYYY form the site's date picker submits. */
+function toSiteDate(date: string): string {
+  return format(parseISO(date), 'MM/dd/yyyy');
+}
 
 export class Nutrition extends Integration {
   readonly name = 'nutrition';

@@ -8,10 +8,6 @@ export const BUSY_LEVELS = {
   3: 'extremely_busy',
 } as const;
 
-export type BusyLevel = (typeof BUSY_LEVELS)[keyof typeof BUSY_LEVELS];
-
-export const busyLevel = z.enum(Object.values(BUSY_LEVELS) as BusyLevel[]);
-
 /** The three dining halls, with the field each one's level sits in on the busy meter's JSON. */
 export const HALL_LEVELS = {
   '251 North': 'level1',
@@ -19,9 +15,9 @@ export const HALL_LEVELS = {
   Yahentamitsi: 'level3',
 } as const;
 
-export type HallName = keyof typeof HALL_LEVELS;
+export const busyLevel = z.enum(Object.values(BUSY_LEVELS));
 
-export const hallName = z.enum(Object.keys(HALL_LEVELS) as HallName[]);
+export const hallName = z.enum(Object.keys(HALL_LEVELS) as (keyof typeof HALL_LEVELS)[]);
 
 export const busyMeterSchema = z.object({
   available: z.boolean().describe('false when the crowd-level service did not answer'),
@@ -38,27 +34,28 @@ export const busyMeterSchema = z.object({
 
 export const diningEventSchema = z.object({
   date: isoDate,
-  weekday,
+  weekday: weekday.describe('Weekday the date falls on'),
   time: z.string().describe('"ALL DAY" or a clock time as printed, e.g. "10:00AM"'),
-  description: z.string(),
+  description: z.string().describe('What happens that day, as plain text'),
 });
 
 export const diningCalendarSchema = z.object({
   title: z
     .string()
     .nullable()
-    .describe('The calendar heading, e.g. "Fall 2026 - Subject to Change"'),
+    .describe('The calendar heading, e.g. "Fall 2026 - Subject to Change"; null when missing'),
   events: z.array(diningEventSchema).describe('Events in the order the page lists them'),
 });
 
 export const newsItemSchema = z.object({
-  title: z.string(),
-  url: z.string(),
-  published: z.string().nullable().describe('ISO 8601 timestamp'),
-  author: z.string().nullable(),
+  title: z.string().describe('Post title'),
+  url: z.string().describe('Post page'),
+  published: z.string().nullable().describe('ISO 8601 timestamp; null when not given'),
+  author: z.string().nullable().describe('null when not given'),
   text: z.string().describe('Body as plain text'),
 });
 
+export type HallName = z.infer<typeof hallName>;
 export type BusyMeter = z.infer<typeof busyMeterSchema>;
 export type DiningEvent = z.infer<typeof diningEventSchema>;
 export type DiningCalendar = z.infer<typeof diningCalendarSchema>;

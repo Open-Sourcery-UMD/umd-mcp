@@ -1,9 +1,7 @@
 import * as cheerio from 'cheerio';
 import type { CheerioAPI } from 'cheerio';
-import { format, isValid, parse } from 'date-fns';
 import { decode, DELIVERY_METHODS, type MeetingType, type Weekday } from '../../../common.js';
 import { isoDateTimeFrom } from '../../../lib/dates.js';
-import type { Query } from '../../../lib/http.js';
 import { absoluteUrl, type Selection, text, textOrNull, texts } from '../../../lib/scrape.js';
 import type {
   Building,
@@ -12,7 +10,6 @@ import type {
   GenEdCategory,
   Listing,
   Meeting,
-  SearchArgs,
   Section,
   Syllabus,
   Term,
@@ -288,46 +285,5 @@ export function parseBuilding(html: string): Building | undefined {
     google_maps_url: link('Google Maps'),
     room_info_url: link('Room Info'),
     picture_url: absoluteUrl(info.find('.building-picture img').first().attr('src'), SOC_URL),
-  };
-}
-
-/** Splits "12:00 PM" into the hour, minute and AM/PM fields the search form posts. */
-function splitClockTime(value: string | undefined): [string, string, string] {
-  if (value === undefined) return ['', '', ''];
-  const time = parse(value.trim().replace(/(am|pm)$/i, ' $1'), 'h:mm a', new Date(0));
-  if (!isValid(time)) return ['', '', ''];
-  return [format(time, 'hh'), format(time, 'mm'), format(time, 'a')];
-}
-
-/** The query string the site's search form submits for `args`; empty fields are always sent. */
-export function searchQuery(args: SearchArgs): Query {
-  const [startHour, startMin, startAM] = splitClockTime(args.start_time);
-  const [endHour, endMin, endAM] = splitClockTime(args.end_time);
-  const flag = (on: boolean | undefined): true | undefined => (on === true ? true : undefined);
-  return {
-    termId: args.term_id,
-    courseId: args.course_id ?? '',
-    sectionId: args.section_id ?? '',
-    instructor: args.instructor ?? '',
-    openSectionsOnly: flag(args.open_sections_only),
-    creditCompare: args.credits === undefined ? '' : args.credits_compare,
-    credits: args.credits === undefined ? '' : args.credits.toFixed(1),
-    courseLevelFilter: args.level,
-    facetoface: flag(args.delivery?.includes('face_to_face')),
-    blended: flag(args.delivery?.includes('blended')),
-    online: flag(args.delivery?.includes('online')),
-    courseStartCompare: args.time_compare ?? '',
-    courseStartHour: startHour,
-    courseStartMin: startMin,
-    courseStartAM: startAM,
-    courseEndHour: endHour,
-    courseEndMin: endMin,
-    courseEndAM: endAM,
-    teachingCenter: args.teaching_center,
-    classDay1: flag(args.days?.includes('M')),
-    classDay2: flag(args.days?.includes('Tu')),
-    classDay3: flag(args.days?.includes('W')),
-    classDay4: flag(args.days?.includes('Th')),
-    classDay5: flag(args.days?.includes('F')),
   };
 }

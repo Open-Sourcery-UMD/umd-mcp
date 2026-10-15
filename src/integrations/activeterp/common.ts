@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
-import { format, isValid, parse } from 'date-fns';
 import { z } from 'zod';
+import { isoDateFrom, isoDateTimeFrom } from '../../lib/dates.js';
 import { text } from '../../lib/scrape.js';
 import { numeric } from '../../lib/text.js';
 
@@ -28,7 +28,7 @@ export const priceMax = z
   .number()
   .nullable()
   .describe(
-    'Highest price in dollars, when the price depends on membership type; equals price_min otherwise',
+    'Highest price in dollars, when the price depends on membership type; equals price_min otherwise, and null when the site does not list one',
   );
 
 /** A price's lower and upper bound, as the site prints them. */
@@ -42,16 +42,12 @@ export function urlParam(href: string | null | undefined, name: string): string 
 
 /** A date as the site prints it, e.g. "Mon, Nov 9 2026", as YYYY-MM-DD; null when unreadable. */
 export function siteDate(value: string | null | undefined): string | null {
-  if (value == null) return null;
-  const date = parse(value.trim(), 'EEE, MMM d yyyy', new Date(0));
-  return isValid(date) ? format(date, 'yyyy-MM-dd') : null;
+  return isoDateFrom(value, 'EEE, MMM d yyyy');
 }
 
 /** A date and time as the site prints them, e.g. "Tue, Sep 15 2026 4:36 PM", as local ISO 8601. */
 export function siteDateTime(value: string | null | undefined): string | null {
-  if (value == null) return null;
-  const date = parse(value.trim(), 'EEE, MMM d yyyy h:mm a', new Date(0));
-  return isValid(date) ? format(date, "yyyy-MM-dd'T'HH:mm:ss") : null;
+  return isoDateTimeFrom(value, 'EEE, MMM d yyyy h:mm a');
 }
 
 /** Dollar amounts in a price string or fragment, e.g. "$80.00 - $110.00", as its bounds. */

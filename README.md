@@ -63,7 +63,8 @@ Environment variables:
 ## Tools
 
 Tool names are `<integration>_<method>`, except the sign-in tools. Integrations marked
-"(login)" need the `login` tool first; the rest work anonymously.
+"(login)" need the `login` tool first, those marked "(optional login)" return more after it,
+and the rest work anonymously.
 
 ### shibboleth
 
@@ -72,57 +73,6 @@ Tool names are `<integration>_<method>`, except the sign-in tools. Integrations 
 | `login`  | Sign in with a UMD Directory ID.                                                                                    |
 | `logout` | Forget the signed-in user and every service session, and clear the sign-in browser so the next login prompts again. |
 | `whoami` | Report the currently signed-in UMD user, or that nobody is signed in, and which services have a live session.       |
-
-### planetterp
-
-| Tool                         | Description                                                                                                      |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `planetterp_get_course`      | Look up a UMD course by its code on PlanetTerp.                                                                  |
-| `planetterp_list_courses`    | List UMD courses on PlanetTerp in alphabetical order, optionally within one department.                          |
-| `planetterp_get_professor`   | Look up a UMD professor or teaching assistant by name on PlanetTerp.                                             |
-| `planetterp_list_professors` | List UMD professors and teaching assistants on PlanetTerp in alphabetical order.                                 |
-| `planetterp_get_grades`      | Grade distributions from PlanetTerp for a course, a professor, or both, broken down by section.                  |
-| `planetterp_search`          | Search PlanetTerp for courses and professors whose code or name contains the query, as the site search bar does. |
-
-### nutrition
-
-| Tool                   | Description                                                                                                                                            |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `nutrition_get_menu`   | What a UMD dining hall is serving on a given day, by meal period and station, with allergens and dietary labels for each dish, from nutrition.umd.edu. |
-| `nutrition_get_recipe` | The nutrition label for a dish on a UMD dining hall menu: serving size, calories, nutrition facts with daily values, ingredients and allergens.        |
-
-### testudo-soc
-
-| Tool                                   | Description                                                                                                                                                 |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `testudo_soc_list_terms`               | Terms the UMD Schedule of Classes currently lists (about four: the current term plus the next few).                                                         |
-| `testudo_soc_list_departments`         | Departments (four-letter course prefixes) offering courses in a term, from the UMD Schedule of Classes.                                                     |
-| `testudo_soc_list_courses`             | Every course a department offers in a term, from the UMD Schedule of Classes: title, credits, grading methods, gen-ed codes, prerequisites and description. |
-| `testudo_soc_get_course`               | One course in a term from the UMD Schedule of Classes, with every section: instructors, seat counts, meeting days, times, rooms and delivery method.        |
-| `testudo_soc_get_sections`             | Sections of one or more courses in a term, from the UMD Schedule of Classes: instructors, seat counts, meeting days, times, rooms and delivery method.      |
-| `testudo_soc_search_courses`           | Search the UMD Schedule of Classes for a term the way its search form does.                                                                                 |
-| `testudo_soc_autocomplete_courses`     | Course ids and titles in a term whose id starts with the given text, from the UMD Schedule of Classes autocomplete.                                         |
-| `testudo_soc_autocomplete_instructors` | Instructors teaching in a term whose last or first name contains the given text, from the UMD Schedule of Classes autocomplete.                             |
-| `testudo_soc_list_gen_ed_categories`   | The general education categories and requirement codes (FSAW, DSHS, DVUP, ...) the UMD Schedule of Classes lists for a term.                                |
-| `testudo_soc_list_gen_ed_courses`      | Courses fulfilling one general education requirement in a term, from the UMD Schedule of Classes.                                                           |
-| `testudo_soc_list_syllabi`             | Past syllabi on file for a course in the UMD Schedule of Classes syllabus repository: the term and instructor of each.                                      |
-| `testudo_soc_get_building`             | Look up a classroom building by the building code and room number a section lists: full name, campus building number and map links.                         |
-
-### testudo (login)
-
-| Tool                                        | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `testudo_get_current_term`                  | The current academic term at UMD with its registration status and key dates, from the Testudo student portal.                                                                                                                                                                                                                                                                                                                                                 |
-| `testudo_list_terms`                        | Terms the signed-in student can use with a given Testudo feature: "schedule" lists terms with a class schedule (use with testudo_get_schedule), "grades" terms with posted grades, "enrollment_certification" terms an enrollment certification can be ordered for, "graduation" every term a graduation date can fall in, "graduation_application" terms open for a graduation application, and "grade_option" terms with an open pass/fail election window. |
-| `testudo_get_schedule`                      | The signed-in student's class schedule for a term from the Testudo student portal: each registered section with its instructors, credits, delivery method and weekly meetings (days, times, building and room).                                                                                                                                                                                                                                               |
-| `testudo_get_grades`                        | The signed-in student's grades for a term from the Testudo student portal: final grades once posted, mid-term grades while the term runs, and the semester and cumulative GPA.                                                                                                                                                                                                                                                                                |
-| `testudo_get_unofficial_transcript`         | The signed-in student's unofficial transcript from the Testudo student portal, as plain text: transfer credit, every past course with its grade, and current courses.                                                                                                                                                                                                                                                                                         |
-| `testudo_get_profile`                       | The signed-in student's contact information on file with the university, from the Testudo student portal: name, email, phone numbers, local and permanent addresses and emergency contact.                                                                                                                                                                                                                                                                    |
-| `testudo_get_registration_appointment`      | When the signed-in student may register for classes, from the Testudo student portal: the registration appointment for the upcoming term, any blocks on the account, and the majors, minors and certificates on record.                                                                                                                                                                                                                                       |
-| `testudo_get_request_status`                | Status of the official transcript and enrollment certification orders the signed-in student has placed through the Testudo student portal, and any judicial or financial block that would stop new orders.                                                                                                                                                                                                                                                    |
-| `testudo_get_graduation_application_status` | The signed-in student's graduation applications from the Testudo student portal: the term applied for, the diploma name and mailing address, and the status of each degree.                                                                                                                                                                                                                                                                                   |
-| `testudo_get_grade_options`                 | The grading option (regular or pass/fail) the signed-in student has elected for each course in a term, from the Testudo student portal, with the pass/fail credit totals.                                                                                                                                                                                                                                                                                     |
-| `testudo_get_parent_access`                 | Parent or guest accounts the signed-in student has granted access to their Testudo records.                                                                                                                                                                                                                                                                                                                                                                   |
 
 ### activeterp
 
@@ -150,9 +100,9 @@ Tool names are `<integration>_<method>`, except the sign-in tools. Integrations 
 | `activeterp_member_list_my_orders`          | The signed-in member's orders: order number, date, where it was placed, totals and whether it was voided.                                                |
 | `activeterp_member_list_my_invoices`        | The signed-in member's invoices, all of them or only the unpaid ones: number, date, total, paid and owing amounts and a PDF link.                        |
 | `activeterp_member_get_invoice`             | One of the signed-in member's invoices: billing details, subtotal, tax, total, amount paid, outstanding balance and the line items.                      |
-| `activeterp_member_list_memberships`        | Memberships RecWell sells on activeterp.umd.edu (day passes, the free Group Fitness and Bouldering Zone memberships) with their blurb and price.         |
+| `activeterp_member_list_memberships`        | Memberships RecWell sells on activeterp.umd.edu (day passes, the free Group Fitness and Bouldering Zone memberships) with their blurb.                   |
 | `activeterp_member_get_membership`          | One membership RecWell sells with each purchasable term: name, billing, upfront price and the dates it would cover for the signed-in member.             |
-| `activeterp_member_list_towel_services`     | Towel services RecWell sells on activeterp.umd.edu (semester and annual) with their price.                                                               |
+| `activeterp_member_list_towel_services`     | Towel services RecWell sells on activeterp.umd.edu (semester and annual).                                                                                |
 | `activeterp_member_get_towel_service`       | One towel service with each purchasable term: name, billing, upfront price and the dates it would cover for the signed-in member.                        |
 | `activeterp_member_list_multi_visit_passes` | Multi-visit passes RecWell sells (personal training session packages, member visit passes) with their category list, price and any purchase requirement. |
 | `activeterp_member_get_multi_visit_pass`    | One multi-visit pass: category, price, full description and any purchase requirement.                                                                    |
@@ -182,6 +132,23 @@ Tool names are `<integration>_<method>`, except the sign-in tools. Integrations 
 | `calendar_list_categories`       | The event-type, audience and status categories the UMD campus calendar files events under, with the slugs calendar_search_events accepts.                                                                          |
 | `calendar_get_academic_calendar` | The approved UMD semester calendars from the Office of the Provost: first and last day of classes, breaks, reading day, final exams, commencement and summer sessions for each academic year, several years ahead. |
 
+### clarice
+
+| Tool                    | Description                                                                                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `clarice_search_events` | Upcoming performances at The Clarice Smith Performing Arts Center (theclarice.umd.edu), optionally narrowed by title, genre, category or presenter. |
+| `clarice_get_event`     | One Clarice event by slug: description, every performance with its hall, prices, venue and seating, content advisories, and its ticketing id.       |
+
+### clarice-tickets
+
+| Tool                                | Description                                                                                                         |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `clarice_tickets_list_events`       | Ticketed Clarice events (Spektrix) with a performance in a date range, optionally in one genre.                     |
+| `clarice_tickets_get_event`         | One ticketed Clarice event by ticketing id, with its description and first and last performance.                    |
+| `clarice_tickets_list_performances` | Every performance of a ticketed Clarice event, with whether it is on sale or cancelled and its online sales window. |
+| `clarice_tickets_get_availability`  | Seats and wheelchair spaces still for sale at one Clarice performance, out of its capacity.                         |
+| `clarice_tickets_get_prices`        | Ticket prices at one Clarice performance by ticket type and seating section.                                        |
+
 ### dining
 
 | Tool                    | Description                                                                                                                                         |
@@ -190,7 +157,7 @@ Tool names are `<integration>_<method>`, except the sign-in tools. Integrations 
 | `dining_get_calendar`   | Key dates for the current semester from UMD Dining Services: when dining plans go live, holiday and break hours, closures and Dining Dollar expiry. |
 | `dining_get_news`       | The newest posts on dining.umd.edu, mainly "The Dish" monthly newsletter, from its RSS feed.                                                        |
 
-### directory (login)
+### directory (optional login)
 
 | Tool                        | Description                                                                                                                                      |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -210,7 +177,7 @@ Tool names are `<integration>_<method>`, except the sign-in tools. Integrations 
 | `elms_get_grades`          | The signed-in student's current and final scores in every ELMS (Canvas) course they are enrolled in, or in one course.                                                                                             |
 | `elms_list_modules`        | The modules of an ELMS (Canvas) course with their items (assignments, files, pages, links) and completion state.                                                                                                   |
 | `elms_list_announcements`  | Announcements posted in one or more ELMS (Canvas) courses within a date window (default: the last 14 days).                                                                                                        |
-| `elms_get_todo`            | Assignments the signed-in student still needs to submit, as ELMS (Canvas) lists them in the to-do sidebar.                                                                                                         |
+| `elms_get_todo`            | Assignments and classic quizzes the signed-in student still needs to submit, as ELMS (Canvas) lists them in the to-do sidebar.                                                                                     |
 | `elms_get_planner`         | Everything due or happening for the signed-in student across all ELMS (Canvas) courses in a date range (default: the next 14 days): assignments, quizzes, announcements, events and notes, with submission status. |
 | `elms_get_upcoming_events` | Upcoming calendar events and assignment due dates across all ELMS (Canvas) courses, as the Canvas dashboard shows them.                                                                                            |
 | `elms_get_activity_stream` | Recent activity across the signed-in student's active ELMS (Canvas) courses: new announcements, discussion posts, grades and messages.                                                                             |
@@ -239,6 +206,53 @@ Tool names are `<integration>_<method>`, except the sign-in tools. Integrations 
 | `go_transfer_links`           | Offer some of the signed-in user's go.umd.edu links to another UMD person, who owns them once they accept.                                                                        |
 | `go_accept_transfer_request`  | Accept links another person offered the signed-in user on go.umd.edu.                                                                                                             |
 | `go_reject_transfer_request`  | Turn down links another person offered the signed-in user, or take back an offer the user made.                                                                                   |
+
+### imleagues
+
+| Tool                       | Description                                                                                                                   |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `imleagues_list_leagues`   | UMD intramural sports this term on IMLeagues, with every league's registration status, sign-up deadlines and season dates.    |
+| `imleagues_get_standings`  | Standings for a UMD intramural league on IMLeagues, for the whole league and within each division, plus the tiebreaker order. |
+| `imleagues_list_handbooks` | Handbooks and manuals UMD Intramural Sports posts on IMLeagues, school-wide or for one sport.                                 |
+
+### imleagues-member (login)
+
+| Tool                             | Description                                                                                                                                                      |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `imleagues_member_list_my_teams` | The signed-in member's UMD intramural teams on IMLeagues, with each team's captain.                                                                              |
+| `imleagues_member_get_league`    | A UMD intramural league's rules, each division's time slot and remaining spots, and every team in each division with its roster size and captain.                |
+| `imleagues_member_get_team`      | A UMD intramural team's league, division, record and scoring, its members' names and roles, and every regular season and playoff game with the result and venue. |
+| `imleagues_member_get_game`      | One UMD intramural game: when and where it is played, its status, both teams' records and standings, and the final and per-period scores.                        |
+
+### maps
+
+| Tool                         | Description                                                                                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `maps_list_buildings`        | Buildings on the UMD campus map (maps.umd.edu) with the number and code Testudo uses for each, its class, category and location.                             |
+| `maps_get_building`          | One building on the UMD campus map by number or code: street address, gross and assignable square feet, ownership, years built and renovated, and occupants. |
+| `maps_list_parking_lots`     | Parking lots and garages on the UMD campus map with who each is for, when a permit is needed, the posted regulation, space and permit counts, and location.  |
+| `maps_list_closures`         | Parking lot, parking garage and road closures posted on the UMD campus map, with what is closed, the dates and a link to the notice.                         |
+| `maps_list_amenities`        | All-gender or family restrooms, lactation rooms, showers, changing tables or elevators across campus, by building and room, from the UMD campus map.         |
+| `maps_list_dining_locations` | Dining halls with their stations, cafes, food courts with their vendors, restaurants, shops and the food pantry, from the UMD campus map.                    |
+| `maps_list_residence_halls`  | UMD residence halls with community, year built, layout, room sizes and kinds of shared bathroom, from the UMD campus map.                                    |
+
+### nutrition
+
+| Tool                   | Description                                                                                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `nutrition_get_menu`   | What a UMD dining hall is serving on a given day, by meal period and station, with allergens and dietary labels for each dish, from nutrition.umd.edu. |
+| `nutrition_get_recipe` | The nutrition label for a dish on a UMD dining hall menu: serving size, calories, nutrition facts with daily values, ingredients and allergens.        |
+
+### planetterp
+
+| Tool                         | Description                                                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `planetterp_get_course`      | Look up a UMD course by its code on PlanetTerp.                                                                  |
+| `planetterp_list_courses`    | List UMD courses on PlanetTerp in alphabetical order, optionally within one department.                          |
+| `planetterp_get_professor`   | Look up a UMD professor or teaching assistant by name on PlanetTerp.                                             |
+| `planetterp_list_professors` | List UMD professors and teaching assistants on PlanetTerp in alphabetical order.                                 |
+| `planetterp_get_grades`      | Grade distributions from PlanetTerp for a course, a professor, or both, broken down by section.                  |
+| `planetterp_search`          | Search PlanetTerp for courses and professors whose code or name contains the query, as the site search bar does. |
 
 ### recwell
 
@@ -277,6 +291,39 @@ Tool names are `<integration>_<method>`, except the sign-in tools. Integrations 
 | `terplink_get_news`                     | News articles student organizations and departments post on TerpLink, newest first, optionally filtered by keyword or organization.                            |
 | `terplink_get_article`                  | One TerpLink news article with its full body as plain text.                                                                                                    |
 | `terplink_search_service_opportunities` | Volunteer and community service opportunities listed for UMD students (mirrored from GivePulse), searchable by keyword.                                        |
+
+### testudo-soc
+
+| Tool                                   | Description                                                                                                                                                 |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `testudo_soc_list_terms`               | Terms the UMD Schedule of Classes currently lists (about four: the current term plus the next few).                                                         |
+| `testudo_soc_list_departments`         | Departments (four-letter course prefixes) offering courses in a term, from the UMD Schedule of Classes.                                                     |
+| `testudo_soc_list_courses`             | Every course a department offers in a term, from the UMD Schedule of Classes: title, credits, grading methods, gen-ed codes, prerequisites and description. |
+| `testudo_soc_get_course`               | One course in a term from the UMD Schedule of Classes, with every section: instructors, seat counts, meeting days, times, rooms and delivery method.        |
+| `testudo_soc_get_sections`             | Sections of one or more courses in a term, from the UMD Schedule of Classes: instructors, seat counts, meeting days, times, rooms and delivery method.      |
+| `testudo_soc_search_courses`           | Search the UMD Schedule of Classes for a term the way its search form does.                                                                                 |
+| `testudo_soc_autocomplete_courses`     | Course ids and titles in a term whose id starts with the given text, from the UMD Schedule of Classes autocomplete.                                         |
+| `testudo_soc_autocomplete_instructors` | Instructors teaching in a term whose last or first name contains the given text, from the UMD Schedule of Classes autocomplete.                             |
+| `testudo_soc_list_gen_ed_categories`   | The general education categories and requirement codes (FSAW, DSHS, DVUP, ...) the UMD Schedule of Classes lists for a term.                                |
+| `testudo_soc_list_gen_ed_courses`      | Courses fulfilling one general education requirement in a term, from the UMD Schedule of Classes.                                                           |
+| `testudo_soc_list_syllabi`             | Past syllabi on file for a course in the UMD Schedule of Classes syllabus repository: the term and instructor of each.                                      |
+| `testudo_soc_get_building`             | Look up a classroom building by the building code and room number a section lists: full name, campus building number and map links.                         |
+
+### testudo (login)
+
+| Tool                                        | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `testudo_get_current_term`                  | The current academic term at UMD with its registration status and key dates, from the Testudo student portal.                                                                                                                                                                                                                                                                                                                                                 |
+| `testudo_list_terms`                        | Terms the signed-in student can use with a given Testudo feature: "schedule" lists terms with a class schedule (use with testudo_get_schedule), "grades" terms with posted grades, "enrollment_certification" terms an enrollment certification can be ordered for, "graduation" every term a graduation date can fall in, "graduation_application" terms open for a graduation application, and "grade_option" terms with an open pass/fail election window. |
+| `testudo_get_schedule`                      | The signed-in student's class schedule for a term from the Testudo student portal: each registered section with its instructors, credits, delivery method and weekly meetings (days, times, building and room).                                                                                                                                                                                                                                               |
+| `testudo_get_grades`                        | The signed-in student's grades for a term from the Testudo student portal: final grades once posted, mid-term grades while the term runs, and the semester and cumulative GPA.                                                                                                                                                                                                                                                                                |
+| `testudo_get_unofficial_transcript`         | The signed-in student's unofficial transcript from the Testudo student portal, as plain text: transfer credit, every past course with its grade, and current courses.                                                                                                                                                                                                                                                                                         |
+| `testudo_get_profile`                       | The signed-in student's contact information on file with the university, from the Testudo student portal: name, email, phone numbers, local and permanent addresses and emergency contact.                                                                                                                                                                                                                                                                    |
+| `testudo_get_registration_appointment`      | When the signed-in student may register for classes, from the Testudo student portal: the registration appointment for the upcoming term, any blocks on the account, and the majors, minors and certificates on record.                                                                                                                                                                                                                                       |
+| `testudo_get_request_status`                | Status of the official transcript and enrollment certification orders the signed-in student has placed through the Testudo student portal, and any judicial or financial block that would stop new orders.                                                                                                                                                                                                                                                    |
+| `testudo_get_graduation_application_status` | The signed-in student's graduation applications from the Testudo student portal: the term applied for, the diploma name and mailing address, and the status of each degree.                                                                                                                                                                                                                                                                                   |
+| `testudo_get_grade_options`                 | The grading option (regular or pass/fail) the signed-in student has elected for each course in a term, from the Testudo student portal, with the pass/fail credit totals.                                                                                                                                                                                                                                                                                     |
+| `testudo_get_parent_access`                 | Parent or guest accounts the signed-in student has granted access to their Testudo records.                                                                                                                                                                                                                                                                                                                                                                   |
 
 ### transportation
 

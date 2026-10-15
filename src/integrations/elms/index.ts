@@ -2,7 +2,7 @@ import { addDays, format, parseISO } from 'date-fns';
 import parseLinkHeader from 'parse-link-header';
 import { z } from 'zod';
 import { isoDate, limit, today } from '../../common.js';
-import { type Fetcher, HttpError, type Query } from '../../lib/http.js';
+import { type Fetcher, HttpError, type Query, request } from '../../lib/http.js';
 import { htmlToTextOrNull } from '../../lib/html.js';
 import { trimmed } from '../../lib/text.js';
 import { Integration, tool } from '../base.js';
@@ -143,8 +143,7 @@ export class Elms extends Integration {
       items.push(...(await canvasJson<T[]>(res)));
       const next = parseLinkHeader(res.headers.get('link'))?.['next']?.url;
       if (next === undefined || page >= pages) return items;
-      res = await this.fetcher(next, { headers: { accept: 'application/json' } });
-      if (!res.ok) throw new HttpError(res.status, next);
+      res = await request(next, '', {}, { headers: { accept: 'application/json' } }, this.fetcher);
     }
   }
 
@@ -185,7 +184,7 @@ export class Elms extends Integration {
   async list_courses({ state }: { state: CourseState }): Promise<{ courses: Course[] }> {
     const courses = await this.list<RawCourse>('users/self/courses', {
       'include[]': ['term', 'total_scores', 'teachers'],
-      ...(state === 'all' ? {} : { enrollment_state: state }),
+      enrollment_state: state === 'all' ? undefined : state,
     });
     return { courses: courses.map(toCourse) };
   }
@@ -225,7 +224,7 @@ export class Elms extends Integration {
     description:
       'Assignments in an ELMS (Canvas) course, ordered by due date, each with the signed-in student\'s submission status and score. Narrow with a bucket such as "upcoming" or "unsubmitted". Requires login.',
     input: { course_id: courseIdInput, bucket: assignmentBucket },
-    output: { assignments: z.array(assignmentSchema) },
+    output: { assignments: z.array(assignmentSchema).describe('Assignments in due date order') },
   })
   async list_assignments({
     course_id,
@@ -237,7 +236,7 @@ export class Elms extends Integration {
     const assignments = await this.list<RawAssignment>(`courses/${course_id}/assignments`, {
       'include[]': ['submission'],
       order_by: 'due_at',
-      ...(bucket === undefined ? {} : { bucket }),
+      bucket,
     });
     return { assignments: assignments.map((raw) => toAssignment(raw, course_id)) };
   }
@@ -273,7 +272,7 @@ export class Elms extends Integration {
     input: {
       course_id: courseIdInput.optional().describe('Only this course (default: all enrollments)'),
     },
-    output: { enrollments: z.array(enrollmentSchema) },
+    output: { enrollments: z.array(enrollmentSchema).describe('One per course enrollment') },
   })
   async get_grades({
     course_id,
@@ -343,7 +342,7 @@ export class Elms extends Integration {
     description:
       'Assignments and classic quizzes the signed-in student still needs to submit, as ELMS (Canvas) lists them in the to-do sidebar. Requires login.',
     input: {},
-    output: { items: z.array(todoItemSchema) },
+    output: { items: z.array(todoItemSchema).describe('To-do items as Canvas orders them') },
   })
   async get_todo(): Promise<{ items: TodoItem[] }> {
     const items = await this.list<RawTodo>('users/self/todo');
@@ -380,7 +379,7 @@ export class Elms extends Integration {
     description:
       'Upcoming calendar events and assignment due dates across all ELMS (Canvas) courses, as the Canvas dashboard shows them. Requires login.',
     input: {},
-    output: { events: z.array(upcomingEventSchema) },
+    output: { events: z.array(upcomingEventSchema).describe('Soonest first') },
   })
   async get_upcoming_events(): Promise<{ events: UpcomingEvent[] }> {
     const events = await this.json<RawEvent[]>('users/self/upcoming_events');
@@ -419,7 +418,7 @@ export class Elms extends Integration {
   }): Promise<{ conversations: Conversation[] }> {
     const conversations = await this.list<RawConversation>(
       'conversations',
-      scope === 'inbox' ? {} : { scope },
+      { scope: scope === 'inbox' ? undefined : scope },
       Math.ceil(limit / PAGE_SIZE),
     );
     return { conversations: conversations.slice(0, limit).map(toConversation) };

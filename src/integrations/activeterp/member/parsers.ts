@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import type { CheerioAPI } from 'cheerio';
-import { format, isValid, parse } from 'date-fns';
+import { isoDateFrom } from '../../../lib/dates.js';
 import { htmlToTextOrNull } from '../../../lib/html.js';
 import { absoluteUrl, type Selection, tables, text, textOrNull } from '../../../lib/scrape.js';
 import { numeric, trimmed } from '../../../lib/text.js';
@@ -35,13 +35,6 @@ function dollars(value: string | null | undefined): number | null {
 /** A dollar amount the site always prints, defaulting to 0 when unreadable. */
 function amount(value: string | null | undefined): number {
   return dollars(value) ?? 0;
-}
-
-/** A date as the profile prints it, e.g. "Jan 1, 1990", as YYYY-MM-DD; null when unreadable. */
-function profileDate(value: string | null): string | null {
-  if (value === null) return null;
-  const date = parse(value, 'MMM d, yyyy', new Date(0));
-  return isValid(date) ? format(date, 'yyyy-MM-dd') : null;
 }
 
 /** "Yes"/"No" as a boolean. */
@@ -97,7 +90,7 @@ export function parseProfile(cardHtml: string, infoHtml: string): Profile {
     name: text($card('.profileCardName').first()),
     id_number: facts.get('id number') ?? null,
     eligibility: facts.get('eligibility') ?? null,
-    date_of_birth: profileDate(values(/^date of birth$/i)[0] ?? null),
+    date_of_birth: isoDateFrom(values(/^date of birth$/i)[0], 'MMM d, yyyy'),
     gender: values(/^gender$/i)[0] ?? null,
     emails: values(/^email address$/i),
     phones: values(/^phone number$/i),

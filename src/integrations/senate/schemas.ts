@@ -267,7 +267,6 @@ export const memberSchema = z.object({
     .string()
     .nullable()
     .describe('College or division acronym; null when the seat is not tied to one'),
-  email: z.string().nullable().describe('Email address; null when not listed'),
   term_ends: termEnds,
 });
 
@@ -293,7 +292,7 @@ export const pastBillsByYearSchema = z.object({
   academic_year: z
     .string()
     .describe('Academic year the committee handled the bills, e.g. "2009-2010"'),
-  bills: z.array(pastBillSchema),
+  bills: z.array(pastBillSchema).describe('Bills the committee handled that year'),
 });
 
 export const committeeLegislationSchema = z.object({
@@ -306,7 +305,7 @@ export const committeeLegislationSchema = z.object({
 });
 
 export const committeeMeetingSchema = z.object({
-  date: isoDate,
+  date: isoDate.describe('Meeting date'),
   start_time: z.string().describe('Start as HH:MM, 24-hour'),
   end_time: z.string().describe('End as HH:MM, 24-hour'),
   documents: z
@@ -333,7 +332,7 @@ export const committeeMeetingsSchema = {
 };
 
 export const senateMeetingSchema = z.object({
-  date: isoDate,
+  date: isoDate.describe('Meeting date'),
   label: z
     .string()
     .nullable()

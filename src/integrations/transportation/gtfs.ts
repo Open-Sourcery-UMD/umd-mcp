@@ -14,7 +14,7 @@ import { countBy, maxBy, toPairs } from 'lodash-es';
 import pMemoize from 'p-memoize';
 import { decode, decodeOrNull, weekdayOf } from '../../common.js';
 import { isoDateFrom } from '../../lib/dates.js';
-import { trimmed } from '../../lib/text.js';
+import { matchesQuery, trimmed } from '../../lib/text.js';
 import {
   DIRECTIONS,
   type Feed,
@@ -248,10 +248,7 @@ export async function stops({ query, lat, lon, radius_m }: StopFilter): Promise<
           bounding_box_side_m: radius_m * 2,
         })
       : getStops({}, STOP_FIELDS, [['stop_id', 'ASC']], { db });
-  const needle = query?.toLowerCase();
-  return found
-    .filter((stop) => needle === undefined || (stop.stop_name ?? '').toLowerCase().includes(needle))
-    .map(toStop);
+  return found.filter((stop) => matchesQuery(query, stop.stop_name)).map(toStop);
 }
 
 /** One stop, or undefined when the feed has no such id. */

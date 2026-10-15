@@ -4,7 +4,7 @@ import { decode, decodeOrNull, type Link, member } from '../../common.js';
 import { isoDateFrom } from '../../lib/dates.js';
 import { htmlToTextOrNull } from '../../lib/html.js';
 import { absoluteUrl, links } from '../../lib/scrape.js';
-import { collapse, joinWords, numeric, trimmed } from '../../lib/text.js';
+import { collapse, joinWords, numeric, trimmed, yesNo } from '../../lib/text.js';
 import {
   type ActiveBill,
   type Bill,
@@ -111,7 +111,6 @@ export type RawMember = {
   name: string;
   seat: string;
   college: string | null;
-  email: string | null;
   term: string | null;
 };
 
@@ -152,10 +151,6 @@ function isoDay(value: string | null | undefined): string | null {
 function prose(value: string | null | undefined): string | null {
   const text = trimmed(value);
   return text === null ? null : unescape(text);
-}
-
-function yesNo(value: string | null | undefined): boolean | null {
-  return value === 'Yes' ? true : value === 'No' ? false : null;
 }
 
 /** "2024, 2025" to [2024, 2025]. */
@@ -329,7 +324,6 @@ export function toMember(raw: RawMember): Member {
     name: collapse(raw.name),
     seat: collapse(raw.seat),
     college: trimmed(raw.college),
-    email: trimmed(raw.email),
     term_ends: numeric(raw.term) || null,
   };
 }

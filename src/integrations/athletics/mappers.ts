@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns';
-import { decode, decodeOrNull } from '../../common.js';
+import { decode } from '../../common.js';
 import { htmlToTextOrNull } from '../../lib/html.js';
 import { absoluteUrl } from '../../lib/scrape.js';
 import { joinWords, trimmed } from '../../lib/text.js';
@@ -13,6 +13,7 @@ import {
   GENDERS,
   OUTCOMES,
   type Opponent,
+  type Outcome,
   type Player,
   type PlayerSearchResult,
   type Roster,
@@ -229,20 +230,32 @@ function startTime(raw: { tbd?: boolean; time?: string | null }): string | null 
   return raw.tbd === true ? null : trimmed(raw.time);
 }
 
+/** A schedule or roster id; null when missing or 0, which the site uses for "none". */
+function idOrNull(id: number | null | undefined): number | null {
+  return id == null || id <= 0 ? null : id;
+}
+
+/** A result code as an outcome; null when missing or "N" (no result recorded). */
+function toOutcome(code: string | null | undefined): Outcome | null {
+  const value = trimmed(code);
+  return value === null || value === 'N' ? null : decode(OUTCOMES, value, 'game result');
+}
+
 function toSportRef(raw: RawSportRef | undefined): SportRef | null {
   return raw?.id === undefined ? null : { id: raw.id, title: raw.title ?? '' };
 }
 
 export function toSport(raw: RawSport): Sport {
+  const gender = trimmed(raw.globalSportGender);
   return {
     id: raw.id,
     title: raw.title,
     short_name: raw.shortName ?? '',
     abbreviation: trimmed(raw.abbrev),
     slug: raw.globalSportNameSlug ?? '',
-    gender: decodeOrNull(GENDERS, trimmed(raw.globalSportGender)),
-    schedule_id: raw.scheduleId ?? null,
-    roster_id: raw.rosterId ?? null,
+    gender: gender === null ? null : decode(GENDERS, gender, 'sport gender'),
+    schedule_id: idOrNull(raw.scheduleId),
+    roster_id: idOrNull(raw.rosterId),
     default_location: trimmed(raw.defaultLocation),
     tickets_url: trimmed(raw.ticketsLink),
     stats_url: trimmed(raw.defaultStatsLink),
@@ -296,7 +309,7 @@ export function toGame(raw: RawGame): Game {
       result === null
         ? null
         : {
-            outcome: result.status === 'N' ? null : decodeOrNull(OUTCOMES, result.status),
+            outcome: toOutcome(result.status),
             team_score: trimmed(result.teamScore),
             opponent_score: trimmed(result.opponentScore),
             boxscore_url: linkUrl(result.boxscore),

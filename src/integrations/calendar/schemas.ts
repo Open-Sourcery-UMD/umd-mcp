@@ -32,12 +32,6 @@ export const AUDIENCES = {
 /** The "featured" status category, the only member of the eventStatus group. */
 export const FEATURED_CATEGORY_ID = 416864;
 
-export type EventType = keyof typeof EVENT_TYPES;
-export type Audience = keyof typeof AUDIENCES;
-
-export const eventType = z.enum(Object.keys(EVENT_TYPES) as EventType[]);
-export const audience = z.enum(Object.keys(AUDIENCES) as Audience[]);
-
 /** The category groups the site files events under, as Craft names them. */
 export const CATEGORY_GROUPS = ['eventType', 'audience', 'eventStatus'] as const;
 
@@ -49,6 +43,8 @@ export const CALENDAR_HANDLES = ['submission', 'communications', 'athletics'] as
 
 export const SEASONS = ['fall', 'winter', 'spring', 'summer'] as const;
 
+export const eventType = z.enum(Object.keys(EVENT_TYPES) as (keyof typeof EVENT_TYPES)[]);
+export const audience = z.enum(Object.keys(AUDIENCES) as (keyof typeof AUDIENCES)[]);
 export const categoryGroup = z.enum(CATEGORY_GROUPS);
 export const locationType = z.enum(LOCATION_TYPES);
 export const calendarHandle = z.enum(CALENDAR_HANDLES);
@@ -92,30 +88,34 @@ export const eventSchema = z.object({
   audiences: z.array(audience).describe('Audience categories (unknown new ones are dropped)'),
   featured: z.boolean().describe('true when the site marks the event as featured'),
   tags: z.array(z.string()).describe('Free-form tags, e.g. "Sustainability"'),
-  location: z.object({
-    types: z
-      .array(locationType)
-      .describe(
-        'Where it happens; several for hybrid events, e.g. ["on_campus","online"]; empty when the event does not say',
-      ),
-    venue: z
-      .string()
-      .nullable()
-      .describe(
-        'Free-text on-campus location, e.g. "Stamp Student Union, Room 1101"; null when not given',
-      ),
-    off_campus_name: z.string().nullable().describe('Off-campus venue name; null when on campus'),
-    off_campus_url: z
-      .string()
-      .nullable()
-      .describe('Off-campus venue website; null when none is given'),
-    address: addressSchema.describe('Postal address for off-campus events; null otherwise'),
-  }),
-  contact: z.object({
-    name: z.string().nullable().describe('Contact person or office; null when not given'),
-    phone: z.string().nullable().describe('Contact phone as printed; null when not given'),
-    email: z.string().nullable().describe('Contact email; null when not given'),
-  }),
+  location: z
+    .object({
+      types: z
+        .array(locationType)
+        .describe(
+          'Where it happens; several for hybrid events, e.g. ["on_campus","online"]; empty when the event does not say',
+        ),
+      venue: z
+        .string()
+        .nullable()
+        .describe(
+          'Free-text on-campus location, e.g. "Stamp Student Union, Room 1101"; null when not given',
+        ),
+      off_campus_name: z.string().nullable().describe('Off-campus venue name; null when on campus'),
+      off_campus_url: z
+        .string()
+        .nullable()
+        .describe('Off-campus venue website; null when none is given'),
+      address: addressSchema.describe('Postal address for off-campus events; null otherwise'),
+    })
+    .describe('Where the event happens'),
+  contact: z
+    .object({
+      name: z.string().nullable().describe('Contact person or office; null when not given'),
+      phone: z.string().nullable().describe('Contact phone as printed; null when not given'),
+      email: z.string().nullable().describe('Contact email; null when not given'),
+    })
+    .describe('Who to contact about the event'),
   calendar: calendarHandle.describe("Which of the site's calendars the event is in"),
 });
 
@@ -166,6 +166,8 @@ export const academicYearSchema = z.object({
   seasons: z.array(academicSeasonSchema).describe('Fall, winter, spring and summer in order'),
 });
 
+export type EventType = z.infer<typeof eventType>;
+export type Audience = z.infer<typeof audience>;
 export type Category = z.infer<typeof categorySchema>;
 export type Address = z.infer<typeof addressSchema>;
 export type Event = z.infer<typeof eventSchema>;

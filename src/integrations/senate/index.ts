@@ -1,5 +1,6 @@
 import { sortBy, uniq } from 'lodash-es';
 import { z } from 'zod';
+import { matchesQuery } from '../../lib/text.js';
 import { Integration, tool } from '../base.js';
 import {
   committeeFolder,
@@ -143,12 +144,8 @@ export class Senate extends Integration {
     limit: number;
     offset: number;
   }): Promise<{ total: number; bills: BillSummary[] }> {
-    const needle = query?.toLowerCase();
-    const bills = (await this.legislation(scope)).filter(
-      (bill) =>
-        needle === undefined ||
-        bill.title.toLowerCase().includes(needle) ||
-        bill.document_number.toLowerCase().includes(needle),
+    const bills = (await this.legislation(scope)).filter((bill) =>
+      matchesQuery(query, bill.title, bill.document_number),
     );
     return { total: bills.length, bills: bills.slice(offset, offset + limit) };
   }
@@ -226,17 +223,13 @@ export class Senate extends Integration {
     constituency?: string | undefined;
     query?: string | undefined;
   }): Promise<{ senators: Senator[] }> {
-    const needle = query?.toLowerCase();
     const wanted = constituency?.toLowerCase();
     const senators = (await this.senators()).filter(
       (senator) =>
         (college === undefined || senator.college === college) &&
         (population === undefined || senator.population === population) &&
         (wanted === undefined || senator.constituency.toLowerCase() === wanted) &&
-        (needle === undefined ||
-          [senator.name, senator.email ?? '', senator.seat].some((text) =>
-            text.toLowerCase().includes(needle),
-          )),
+        matchesQuery(query, senator.name, senator.email, senator.seat),
     );
     return { senators };
   }
@@ -270,7 +263,7 @@ export class Senate extends Integration {
       type: groupType
         .optional()
         .describe(
-          'Only "committee" (Senate committees), "council" (University councils) or "past_council" (dissolved councils and task forces); default: all',
+          'Only "committee" (Senate committees), "council" (University councils) or "past_council" (dissolved councils and task forces) (default: all)',
         ),
     },
     output: { groups: z.array(groupSummarySchema).describe('Committees, then councils') },

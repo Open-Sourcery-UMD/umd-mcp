@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isoDate, tableSchema } from '../../../common.js';
+import { isoDate, localDateTime, tableSchema } from '../../../common.js';
 import { guid } from '../common.js';
 
 export const membershipProductId = guid.describe('Membership product id');
@@ -15,16 +15,18 @@ export const invoiceNumber = z
   .toUpperCase()
   .describe('Invoice number, e.g. "I-414539"');
 
-const localDateTime = z
-  .string()
-  .describe('ISO 8601 in College Park local time, without an offset, e.g. "2026-09-15T16:36:00"');
-
 const dollars = (what: string) => z.number().describe(`${what} in dollars`);
+
+const dollarsOrNull = (what: string) =>
+  z.number().nullable().describe(`${what} in dollars; null when not shown`);
 
 export const profileSchema = z.object({
   name: z.string().describe('Full name'),
   id_number: z.string().nullable().describe('University ID number; null when not on file'),
-  eligibility: z.string().nullable().describe('Membership eligibility, e.g. "Student"'),
+  eligibility: z
+    .string()
+    .nullable()
+    .describe('Membership eligibility, e.g. "Student"; null when not on file'),
   date_of_birth: isoDate.nullable().describe('Date of birth as YYYY-MM-DD; null when not on file'),
   gender: z.string().nullable().describe('null when not on file'),
   emails: z.array(z.string()).describe('Email addresses on file'),
@@ -55,7 +57,7 @@ export const accessSchema = z.object({
     .string()
     .nullable()
     .describe('Device that recorded the exit; null when no exit was recorded'),
-  time: localDateTime.nullable().describe('When access was recorded; null when unreadable'),
+  time: localDateTime('When access was recorded; null when unreadable').nullable(),
   access_granted: z.boolean().describe('false when the visit was denied'),
   manual_lookup: z.boolean().describe('true when staff looked the member up by hand'),
   forgot_id: z.boolean().describe('true when the member came without their ID'),
@@ -70,7 +72,7 @@ export const orderSchema = z.object({
   subtotal: dollars('Subtotal'),
   adjustment: dollars('Discounts and other adjustments'),
   total: dollars('Order total'),
-  voided: z.boolean(),
+  voided: z.boolean().describe('true when the order was voided'),
 });
 
 export const invoiceSummarySchema = z.object({
@@ -88,14 +90,21 @@ export const invoiceSummarySchema = z.object({
 
 export const invoiceSchema = z.object({
   number: z.string().describe('Invoice number, e.g. "I-414539"'),
-  bill_to: z.string().nullable().describe('Billing name and address as plain text'),
-  date: isoDate.nullable(),
-  age_days: z.number().int().nullable().describe('Days since the invoice date'),
-  subtotal: dollars('Subtotal').nullable(),
-  tax: dollars('Tax').nullable(),
-  total: dollars('Invoice total').nullable(),
-  paid: dollars('Amount paid').nullable(),
-  outstanding: dollars('Outstanding balance').nullable(),
+  bill_to: z
+    .string()
+    .nullable()
+    .describe('Billing name and address as plain text; null when not shown'),
+  date: isoDate.nullable().describe('Invoice date as YYYY-MM-DD; null when not shown'),
+  age_days: z
+    .number()
+    .int()
+    .nullable()
+    .describe('Days since the invoice date; null when not shown'),
+  subtotal: dollarsOrNull('Subtotal'),
+  tax: dollarsOrNull('Tax'),
+  total: dollarsOrNull('Invoice total'),
+  paid: dollarsOrNull('Amount paid'),
+  outstanding: dollarsOrNull('Outstanding balance'),
   details: z
     .array(tableSchema)
     .describe('Line-item tables under "Invoice Details"; empty when there are none'),

@@ -58,7 +58,6 @@ export type RawMember = {
   uid: string;
   display_name: string;
   internet_id: string;
-  email: string | null;
   admin: boolean | null;
 };
 
@@ -215,19 +214,12 @@ export function parseMembers(html: string): Member[] {
     .map((row) => {
       const id = numeric(/^user-(\d+)$/.exec($(row).attr('id') ?? '')?.[1]);
       if (id === null) throw new Error('go: unexpected member row');
-      const cells = $(row).find('td');
-      // A member without an email shows "No E-Mail" in italics.
-      const email = cells.eq(1);
-      return {
-        id,
-        name: text(cells.eq(0)),
-        email: email.find('i').length > 0 ? null : textOrNull(email),
-      };
+      return { id, name: text($(row).find('td').eq(0)) };
     });
 }
 
 export function toMember(raw: RawMember): Member {
-  return { id: raw.id, name: raw.display_name, email: trimmed(raw.email) };
+  return { id: raw.id, name: raw.display_name };
 }
 
 export function toUser(raw: RawUser): User {

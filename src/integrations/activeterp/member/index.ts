@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HttpError, type Query } from '../../../lib/http.js';
+import type { Query } from '../../../lib/http.js';
 import { perSession } from '../../../lib/session.js';
 import { Integration, tool } from '../../base.js';
 import { SITE } from '../common.js';
@@ -213,7 +213,7 @@ export class ActiveTerpMember extends Integration {
       unpaid_only: z
         .boolean()
         .default(false)
-        .describe('Only invoices with a balance owing (default: all)'),
+        .describe('Only invoices with a balance owing (default false)'),
     },
     output: {
       invoices: z.array(invoiceSummarySchema).describe('Invoices in the order the site lists them'),
@@ -235,17 +235,11 @@ export class ActiveTerpMember extends Integration {
     output: invoiceSchema.shape,
   })
   async get_invoice({ number }: { number: string }): Promise<Invoice> {
-    let html: string;
-    try {
-      html = await this.fragment('Invoice/InvoiceDetails', { invoiceNumber: number });
-    } catch (error) {
-      // The site answers an unknown invoice number with a server error.
-      if (error instanceof HttpError && error.status === 500) {
-        throw new Error(`${this.name}: no invoice ${number}`, { cause: error });
-      }
-      throw error;
-    }
-    return parseInvoice(html, number);
+    // The site answers an unknown invoice number with HTTP 500.
+    return parseInvoice(
+      await this.fragment('Invoice/InvoiceDetails', { invoiceNumber: number }),
+      number,
+    );
   }
 
   @tool({

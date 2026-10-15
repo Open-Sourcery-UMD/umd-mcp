@@ -1,4 +1,4 @@
-import { decode } from '../../common.js';
+import { decode, member } from '../../common.js';
 import { htmlToTextOrNull } from '../../lib/html.js';
 import { collapse, joinWords, lines, trimmed } from '../../lib/text.js';
 import {
@@ -7,9 +7,9 @@ import {
   type BenefitCode,
   type Category,
   EVENT_BENEFITS,
+  EVENT_THEMES,
   type Event,
   type EventSummary,
-  type EventTheme,
   IMAGE_ROOT,
   type Organization,
   type OrganizationSummary,
@@ -80,9 +80,10 @@ export type RawEventSearch = {
   startsOn: string;
   endsOn: string;
   imagePath: string | null;
-  theme: EventTheme;
+  theme: string;
   categoryNames: string[];
-  benefitNames: Event['benefits'];
+  /** Perks as results spell them ("Free Food"), unlike the codes the event detail uses. */
+  benefitNames: string[];
   rsvpTotal: number;
 };
 
@@ -109,7 +110,7 @@ export type RawEvent = {
     instructions: string | null;
     provider: string | null;
   } | null;
-  theme: EventTheme;
+  theme: string;
   benefits: BenefitCode[];
   categories: RawCategory[];
   visibility: string;
@@ -147,6 +148,9 @@ export type RawServiceOpportunity = {
   Causes: string[];
   Skills: string[];
 };
+
+/** Perk names as search results spell them. */
+const BENEFIT_NAMES = Object.values(EVENT_BENEFITS);
 
 function imageUrl(path: string | null | undefined): string | null {
   const name = trimmed(path);
@@ -226,9 +230,9 @@ export function toEventSummary(raw: RawEventSearch): EventSummary {
     starts_on: raw.startsOn,
     ends_on: raw.endsOn,
     organization: { id: raw.organizationId, name: collapse(raw.organizationName) },
-    theme: raw.theme,
+    theme: member(EVENT_THEMES, raw.theme, 'event theme'),
     categories: raw.categoryNames.map(collapse),
-    benefits: raw.benefitNames,
+    benefits: raw.benefitNames.map((name) => member(BENEFIT_NAMES, name, 'event benefit')),
     rsvp_total: raw.rsvpTotal,
     image_url: imageUrl(raw.imagePath),
     url: `${SITE}/event/${raw.id}`,
@@ -245,7 +249,7 @@ export function toEvent(raw: RawEvent, organizationName: string): Event {
     starts_on: raw.startsOn,
     ends_on: raw.endsOn,
     organization: { id: raw.organizationId, name: collapse(organizationName) },
-    theme: raw.theme,
+    theme: member(EVENT_THEMES, raw.theme, 'event theme'),
     categories: raw.categories.map((category) => collapse(category.name)),
     benefits: raw.benefits.map((code) => decode(EVENT_BENEFITS, code, 'event benefit')),
     image_url: trimmed(raw.imageUrl) ?? imageUrl(raw.imagePath),

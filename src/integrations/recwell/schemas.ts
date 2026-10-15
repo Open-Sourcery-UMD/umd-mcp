@@ -28,13 +28,13 @@ export const FACILITY_PAGES = {
 
 export type FacilityKey = keyof typeof FACILITY_PAGES;
 
-export const facilityKey = z
-  .enum(Object.keys(FACILITY_PAGES) as FacilityKey[])
-  .describe('Which facility page to read');
-
 export const FACILITY_CATEGORIES = ['indoor', 'outdoor'] as const;
 
 export type FacilityCategory = (typeof FACILITY_CATEGORIES)[number];
+
+export const facilityKey = z
+  .enum(Object.keys(FACILITY_PAGES) as FacilityKey[])
+  .describe('Which facility page to read');
 
 export const facilityCategory = z
   .enum(FACILITY_CATEGORIES)
@@ -63,7 +63,7 @@ export const facilitySummarySchema = z.object({
 });
 
 export const fitnessClassSchema = z.object({
-  day: weekday,
+  day: weekday.describe('Day of the week the class meets'),
   name: z.string().describe('Class name, e.g. "BodyPump"'),
   location: z.string().describe('Where it meets, e.g. "ERC Fitness Studio"'),
   instructor: z.string().nullable().describe('Instructor name; null when unassigned'),

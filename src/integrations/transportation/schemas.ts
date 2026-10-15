@@ -45,14 +45,28 @@ export const feedSchema = z.object({
   valid_to: isoDate
     .nullable()
     .describe('Last date the timetable covers; null when the feed does not say'),
-  version: z.string().nullable().describe('Feed version as the publisher labels it'),
+  version: z
+    .string()
+    .nullable()
+    .describe('Feed version as the publisher labels it; null when the feed does not say'),
 });
 
 export const routeSchema = z.object({
   id: z.string().describe('Route id, e.g. "104"'),
-  short_name: z.string().nullable().describe('Number or code shown on the bus, e.g. "104"'),
-  long_name: z.string().nullable().describe('Route name, e.g. "College Park Metro Station"'),
-  color: z.string().nullable().describe('Route colour as a six-digit hex string, e.g. "93c47d"'),
+  short_name: z
+    .string()
+    .nullable()
+    .describe('Number or code shown on the bus, e.g. "104"; null when the feed gives none'),
+  long_name: z
+    .string()
+    .nullable()
+    .describe('Route name, e.g. "College Park Metro Station"; null when the feed gives none'),
+  color: z
+    .string()
+    .nullable()
+    .describe(
+      'Route colour as a six-digit hex string, e.g. "93c47d"; null when the feed gives none',
+    ),
   url: z
     .string()
     .nullable()
@@ -68,9 +82,12 @@ export const routeSchema = z.object({
 
 export const stopSchema = z.object({
   id: z.string().describe('Stop id, e.g. "1001"'),
-  name: z.string().nullable().describe('Stop name, e.g. "Regents Drive Garage"'),
-  lat: z.number().nullable().describe('Latitude'),
-  lon: z.number().nullable().describe('Longitude'),
+  name: z
+    .string()
+    .nullable()
+    .describe('Stop name, e.g. "Regents Drive Garage"; null when the feed gives none'),
+  lat: z.number().nullable().describe('Latitude; null when the feed gives none'),
+  lon: z.number().nullable().describe('Longitude; null when the feed gives none'),
   wheelchair_boarding: wheelchairBoarding.describe('Wheelchair access as the feed records it'),
 });
 
@@ -84,7 +101,10 @@ export const routeStopSchema = stopSchema.extend({
 });
 
 export const routeDetailSchema = routeSchema.extend({
-  headsign: z.string().nullable().describe('Destination shown on the bus for this pattern'),
+  headsign: z
+    .string()
+    .nullable()
+    .describe('Destination shown on the bus for this pattern; null when the feed gives none'),
   stops: z
     .array(routeStopSchema)
     .describe(
@@ -102,8 +122,11 @@ export const departureSchema = z.object({
       'Local time as HH:MM:SS; hours run past 24 for trips after midnight, e.g. "25:10:00"',
     ),
   stop_id: z.string().describe('Stop id'),
-  stop_name: z.string().nullable().describe('Stop name'),
-  headsign: z.string().nullable().describe('Destination shown on the bus from this stop'),
+  stop_name: z.string().nullable().describe('Stop name; null when the feed gives none'),
+  headsign: z
+    .string()
+    .nullable()
+    .describe('Destination shown on the bus from this stop; null when the feed gives none'),
   direction: direction.nullable().describe('Direction of travel; null when the feed does not say'),
   trip_id: z.string().describe('GTFS trip id'),
   timepoint: z.boolean().describe('true when the time is a scheduled timepoint, not an estimate'),
@@ -129,8 +152,14 @@ export const alertSchema = z.object({
 });
 
 export const alertsSchema = z.object({
-  season: z.string().nullable().describe('Schedule season heading, e.g. "FALL 2026 SCHEDULES"'),
-  effective: z.string().nullable().describe('Effective-date note under the heading'),
+  season: z
+    .string()
+    .nullable()
+    .describe('Schedule season heading, e.g. "FALL 2026 SCHEDULES"; null when the page has none'),
+  effective: z
+    .string()
+    .nullable()
+    .describe('Effective-date note under the heading; null when the page has none'),
   alerts: z.array(alertSchema).describe('System updates and alerts, top first'),
   notices: z.array(linkSchema).describe('Modified-service notices linked under the season heading'),
 });
@@ -138,7 +167,10 @@ export const alertsSchema = z.object({
 export const servicePeriodEntrySchema = z.object({
   dates: z.string().describe('Date range as printed, e.g. "Saturday, Oct. 11–Tuesday, Oct.14"'),
   status: z.string().describe('Service level as printed, e.g. "Modified Service"'),
-  url: z.string().nullable().describe('Notice page with the route-by-route detail'),
+  url: z
+    .string()
+    .nullable()
+    .describe('Notice page with the route-by-route detail; null when not linked'),
 });
 
 export const servicePeriodSchema = z.object({
@@ -150,7 +182,7 @@ export const serviceCalendarSchema = z.object({
   title: z
     .string()
     .nullable()
-    .describe('Page heading, e.g. "SHUTTLE-UM SERVICE CALENDAR: 2025-2026"'),
+    .describe('Page heading, e.g. "SHUTTLE-UM SERVICE CALENDAR: 2025-2026"; null when none'),
   periods: z.array(servicePeriodSchema).describe('Periods in the order the page lists them'),
 });
 

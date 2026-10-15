@@ -67,6 +67,10 @@ export type Query = Record<
 /** Plain `fetch`, for integrations without a sign-in session. */
 export const plainFetch: Fetcher = (input, init) => fetch(input, init);
 
+/** `fetch` with the request timeout, for clients that call it themselves (`GraphQLClient`). */
+export const timedFetch: typeof fetch = (input, init) =>
+  fetch(input, { signal: AbortSignal.timeout(TIMEOUT_MS), ...init });
+
 /**
  * `fetch` with its own cookie jar, for anonymous flows that still need a server session
  * (a search that keeps its results in the session, an anti-forgery token tied to a cookie).
@@ -75,8 +79,9 @@ export function cookieFetcher(): Fetcher {
   return makeFetchCookie(fetch, new CookieJar());
 }
 
+/** `path` under `baseUrl`; an empty `path` leaves `baseUrl` as it is, e.g. a `Link: next` URL. */
 function buildUrl(baseUrl: string, path: string, query: Query): URL {
-  const url = new URL(`${baseUrl}/${path.replace(/^\/+/, '')}`);
+  const url = new URL(path === '' ? baseUrl : `${baseUrl}/${path.replace(/^\/+/, '')}`);
   for (const [key, value] of Object.entries(query)) {
     if (value === undefined) continue;
     for (const item of Array.isArray(value) ? value : [value]) {

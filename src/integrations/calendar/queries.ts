@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import { ClientError, gql, GraphQLClient } from 'graphql-request';
-import { getText } from '../../lib/http.js';
+import { getText, timedFetch } from '../../lib/http.js';
 
 export const SITE = 'https://calendar.umd.edu';
 
@@ -82,7 +82,10 @@ export const CATEGORIES_QUERY = gql`
 `;
 
 function newClient(token: string): GraphQLClient {
-  return new GraphQLClient(`${SITE}/graphql`, { headers: { authorization: `Bearer ${token}` } });
+  return new GraphQLClient(`${SITE}/graphql`, {
+    headers: { authorization: `Bearer ${token}` },
+    fetch: timedFetch,
+  });
 }
 
 let client = newClient(DEFAULT_TOKEN);

@@ -120,11 +120,11 @@ const seatsAsOf = z
   .string()
   .nullable()
   .describe(
-    'When the seat counts on this page were last refreshed, as YYYY-MM-DDTHH:MM:SS in US Eastern time (roughly hourly); null if the page does not say',
+    'When the seat counts on this page were last refreshed, as YYYY-MM-DDTHH:MM:SS in US Eastern time (roughly hourly); null when the page does not say',
   );
 
 const requirementText = (label: string) =>
-  z.string().nullable().describe(`The catalog's "${label}" note; null if there is none`);
+  z.string().nullable().describe(`The catalog's "${label}" note; null when there is none`);
 
 export const termSchema = z.object({
   id: term.describe('Term id to pass to the other tools, e.g. "202608"'),
@@ -165,7 +165,7 @@ export const courseSchema = z.object({
     .describe(
       'true for individual-instruction courses (independent study, research) where the department must be contacted to register',
     ),
-  description: z.string().nullable().describe('Catalog description; null if none'),
+  description: z.string().nullable().describe('Catalog description; null when none'),
   prerequisite: requirementText('Prerequisite'),
   corequisite: requirementText('Corequisite'),
   recommended: requirementText('Recommended'),
@@ -190,8 +190,11 @@ export const meetingSchema = z.object({
   start_time: z
     .string()
     .nullable()
-    .describe('Start time as printed, e.g. "10:00am"; null if not set'),
-  end_time: z.string().nullable().describe('End time as printed, e.g. "10:50am"; null if not set'),
+    .describe('Start time as printed, e.g. "10:00am"; null when not set'),
+  end_time: z
+    .string()
+    .nullable()
+    .describe('End time as printed, e.g. "10:50am"; null when not set'),
   building: z
     .string()
     .nullable()
@@ -201,7 +204,7 @@ export const meetingSchema = z.object({
   room: z
     .string()
     .nullable()
-    .describe('Room number, e.g. "0324"; "ONLINE" for online meetings; null if unassigned'),
+    .describe('Room number, e.g. "0324"; "ONLINE" for online meetings; null when unassigned'),
   time_on_elms: z
     .boolean()
     .describe(
@@ -217,7 +220,11 @@ export const sectionSchema = z.object({
     .object({
       total: z.number().int().describe('Total seats'),
       open: z.number().int().describe('Open seats'),
-      waitlist: z.number().int().nullable().describe('Students on the waitlist; null if not shown'),
+      waitlist: z
+        .number()
+        .int()
+        .nullable()
+        .describe('Students on the waitlist; null when not shown'),
     })
     .describe('Seat counts as of the last refresh, not real time'),
   meetings: z.array(meetingSchema).describe('Weekly meetings of the section'),
@@ -253,19 +260,25 @@ export const syllabusSchema = z.object({
 export const buildingSchema = z.object({
   name: z.string().describe('Building name, e.g. "Brendan Iribe Center"'),
   code: z.string().describe('Building code, e.g. "IRB"'),
-  number: z.string().nullable().describe('Campus building number, e.g. "432"'),
-  room: z.string().nullable().describe('Room number as given, e.g. "0324"'),
-  campus_map_url: z.string().nullable().describe('Link to the building on the UMD campus map'),
-  google_maps_url: z.string().nullable().describe('Link to the building on Google Maps'),
-  room_info_url: z.string().nullable().describe('Link to the room in 25Live'),
-  picture_url: z.string().nullable().describe('Photo of the building'),
+  number: z.string().nullable().describe('Campus building number, e.g. "432"; null when not given'),
+  room: z.string().nullable().describe('Room number as given, e.g. "0324"; null when not given'),
+  campus_map_url: z
+    .string()
+    .nullable()
+    .describe('Link to the building on the UMD campus map; null when not linked'),
+  google_maps_url: z
+    .string()
+    .nullable()
+    .describe('Link to the building on Google Maps; null when not linked'),
+  room_info_url: z.string().nullable().describe('Link to the room in 25Live; null when not linked'),
+  picture_url: z.string().nullable().describe('Photo of the building; null when none'),
 });
 
 export const departmentCoursesSchema = z.object({
   department: departmentSchema
     .extend({
-      name: z.string().nullable().describe('Department name; null if the site lists nothing'),
-      website: z.string().nullable().describe("The department's own website, if linked"),
+      name: z.string().nullable().describe('Department name; null when the site lists nothing'),
+      website: z.string().nullable().describe("The department's own website; null when not linked"),
     })
     .describe('The department'),
   seats_as_of: seatsAsOf,

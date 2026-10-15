@@ -3,10 +3,15 @@ import { ActiveTerpMember } from './activeterp/member/index.js';
 import { Athletics } from './athletics/index.js';
 import type { Integration } from './base.js';
 import { Calendar } from './calendar/index.js';
+import { Clarice } from './clarice/site/index.js';
+import { ClariceTickets } from './clarice/tickets/index.js';
 import { Dining } from './dining/index.js';
 import { Directory } from './directory/index.js';
 import { Elms } from './elms/index.js';
 import { Go } from './go/index.js';
+import { IMLeagues } from './imleagues/catalog/index.js';
+import { IMLeaguesMember } from './imleagues/member/index.js';
+import { Maps } from './maps/index.js';
 import { Nutrition } from './nutrition/index.js';
 import { PlanetTerp } from './planetterp/index.js';
 import { RecWell } from './recwell/index.js';
@@ -21,21 +26,26 @@ import { Transportation } from './transportation/index.js';
 export function createIntegrations(): Integration[] {
   return [
     new Shibboleth(),
-    new PlanetTerp(),
-    new Nutrition(),
-    new ScheduleOfClasses(),
-    new StudentPortal(),
     new ActiveTerp(),
     new ActiveTerpMember(),
     new Athletics(),
     new Calendar(),
+    new Clarice(),
+    new ClariceTickets(),
     new Dining(),
     new Directory(),
     new Elms(),
     new Go(),
+    new IMLeagues(),
+    new IMLeaguesMember(),
+    new Maps(),
+    new Nutrition(),
+    new PlanetTerp(),
     new RecWell(),
     new Senate(),
     new TerpLink(),
+    new ScheduleOfClasses(),
+    new StudentPortal(),
     new Transportation(),
   ];
 }
