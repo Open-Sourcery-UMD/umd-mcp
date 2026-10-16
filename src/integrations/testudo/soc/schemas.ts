@@ -51,23 +51,6 @@ export const clockTime = z
   .trim()
   .regex(/^(1[0-2]|0?[1-9]):(00|15|30|45)\s?(am|pm)$/i, 'Expected a time like "12:00 PM"');
 
-/** A department prefix, partial course id or full course id, as the search form accepts. */
-export const coursePrefix = z
-  .string()
-  .trim()
-  .regex(/^[A-Za-z]{1,4}\d{0,3}[A-Za-z]?$/, 'Expected a course id or prefix like CMSC13')
-  .toUpperCase()
-  .describe(
-    'Department prefix ("CMSC"), partial id ("CMSC13") or full course id ("CMSC131") to match',
-  );
-
-export const genEdCode = z
-  .string()
-  .trim()
-  .regex(/^[A-Za-z]{4}$/, 'Expected a gen-ed code like DSNL')
-  .toUpperCase()
-  .describe('General education code from testudo_soc_list_gen_ed_categories, e.g. "DSNL"');
-
 export const buildingCode = z
   .string()
   .trim()

@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import type { CheerioAPI } from 'cheerio';
-import { decode, DELIVERY_METHODS, type MeetingType, type Weekday } from '../../../common.js';
+import { decode, DELIVERY_METHODS, type MeetingType, weekdaysFrom } from '../../../common.js';
 import { isoDateTimeFrom } from '../../../lib/dates.js';
 import { absoluteUrl, type Selection, text, textOrNull, texts } from '../../../lib/scrape.js';
 import type {
@@ -160,7 +160,7 @@ function parseMeeting($: CheerioAPI, row: Selection): Meeting {
   const classType = textOrNull(row.find('.class-type'));
   return {
     type: classType === null ? 'lecture' : decode(CLASS_TYPES, classType, 'class type'),
-    days: (text(row.find('.section-days')).match(/Tu|Th|Sa|Su|M|W|F/g) ?? []) as Weekday[],
+    days: weekdaysFrom(text(row.find('.section-days'))),
     start_time: textOrNull(row.find('.class-start-time')),
     end_time: textOrNull(row.find('.class-end-time')),
     building: textOrNull(row.find('.building-code')),

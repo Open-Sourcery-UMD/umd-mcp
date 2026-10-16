@@ -1,8 +1,8 @@
 # umd-mcp
 
 An [MCP](https://modelcontextprotocol.io) server exposing University of Maryland data: courses
-and grades (PlanetTerp, the Schedule of Classes, the Testudo student portal, ELMS), dining
-menus and news, Shuttle-UM routes and timetables, athletics, the campus calendar, TerpLink
+and grades (PlanetTerp, Jupiterp, the Schedule of Classes, the Testudo student portal, ELMS),
+dining menus and news, Shuttle-UM routes and timetables, athletics, the campus calendar, TerpLink
 organizations and events, RecWell facilities and the ActiveTerp recreation portal, the University
 Senate, and the campus directory.
 
@@ -223,6 +223,19 @@ and the rest work anonymously.
 | `imleagues_member_get_league`    | A UMD intramural league's rules, each division's time slot and remaining spots, and every team in each division with its roster size and captain.                |
 | `imleagues_member_get_team`      | A UMD intramural team's league, division, record and scoring, its members' names and roles, and every regular season and playoff game with the result and venue. |
 | `imleagues_member_get_game`      | One UMD intramural game: when and where it is played, its status, both teams' records and standings, and the final and per-period scores.                        |
+
+### jupiterp
+
+| Tool                         | Description                                                                                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `jupiterp_list_departments`  | Every four-letter department code on Jupiterp with its name.                                                                                                             |
+| `jupiterp_list_courses`      | UMD courses from Jupiterp's scrape of the Schedule of Classes: title, credits, gen-eds, prerequisite and restriction notes and description.                              |
+| `jupiterp_list_sections`     | Sections of UMD courses in the current term from Jupiterp: instructors with their Jupiterp slugs, meeting days, times and rooms, and seat, waitlist and holdfile counts. |
+| `jupiterp_list_instructors`  | UMD instructors on Jupiterp with their average student rating (PlanetTerp and Jupiterp reviews blended) and the terms they have taught.                                  |
+| `jupiterp_list_reviews`      | Approved student reviews of a UMD instructor on Jupiterp, including those imported from PlanetTerp.                                                                      |
+| `jupiterp_get_grades`        | Grade distributions for individual UMD course sections from the Registrar's release on Jupiterp, fall and spring terms since Fall 2010.                                  |
+| `jupiterp_get_grade_summary` | Grade distributions on Jupiterp summed across sections: per course, per course and term, per course and instructor, per instructor, or per instructor and term.          |
+| `jupiterp_list_grade_terms`  | Terms Jupiterp has grade data for, newest first, with section and course counts and the university-wide GPA.                                                             |
 
 ### maps
 

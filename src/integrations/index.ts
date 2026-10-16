@@ -11,6 +11,7 @@ import { Elms } from './elms/index.js';
 import { Go } from './go/index.js';
 import { IMLeagues } from './imleagues/catalog/index.js';
 import { IMLeaguesMember } from './imleagues/member/index.js';
+import { Jupiterp } from './jupiterp/index.js';
 import { Maps } from './maps/index.js';
 import { Nutrition } from './nutrition/index.js';
 import { PlanetTerp } from './planetterp/index.js';
@@ -38,6 +39,7 @@ export function createIntegrations(): Integration[] {
     new Go(),
     new IMLeagues(),
     new IMLeaguesMember(),
+    new Jupiterp(),
     new Maps(),
     new Nutrition(),
     new PlanetTerp(),

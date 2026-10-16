@@ -1,5 +1,6 @@
 import { TZDate } from '@date-fns/tz';
 import { format, getDay, parseISO } from 'date-fns';
+import { mapValues } from 'lodash-es';
 import { z } from 'zod';
 
 /** The time zone every UMD system reports local times in. */
@@ -47,6 +48,23 @@ export const departmentCode = z
   .toUpperCase()
   .describe('Four-letter department code, e.g. "CMSC"');
 
+/** A department prefix, partial course id or full course id, as course searches accept. */
+export const coursePrefix = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z]{1,4}\d{0,3}[A-Za-z]?$/, 'Expected a course id or prefix like CMSC13')
+  .toUpperCase()
+  .describe(
+    'Department prefix ("CMSC"), partial id ("CMSC13") or full course id ("CMSC131") to match',
+  );
+
+export const genEdCode = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z]{4}$/, 'Expected a gen-ed code like DSNL')
+  .toUpperCase()
+  .describe('General education code from testudo_soc_list_gen_ed_categories, e.g. "DSNL"');
+
 export const sectionId = z
   .string()
   .trim()
@@ -87,6 +105,11 @@ export function weekdayFromName(name: string): Weekday | null {
     Object.entries(WEEKDAY_NAMES).find(([full]) => full.startsWith(key) && key.length >= 3)?.[1] ??
     null
   );
+}
+
+/** The weekdays in a run of day codes as sites print them, e.g. "TuTh" or "MWF". */
+export function weekdaysFrom(text: string): Weekday[] {
+  return (text.match(/Tu|Th|Sa|Su|M|W|F/g) ?? []) as Weekday[];
 }
 
 /** Monday to Friday, the days a class can be searched by. */
@@ -176,6 +199,32 @@ export function memberOf<const T extends readonly string[]>(
 ): T[number] | null {
   return value != null && values.includes(value) ? value : null;
 }
+
+/** The letter grades and other outcomes a grade distribution counts, as the Registrar buckets them. */
+const GRADE_BUCKETS = {
+  'A+': 'an A+',
+  A: 'an A',
+  'A-': 'an A-',
+  'B+': 'a B+',
+  B: 'a B',
+  'B-': 'a B-',
+  'C+': 'a C+',
+  C: 'a C',
+  'C-': 'a C-',
+  'D+': 'a D+',
+  D: 'a D',
+  'D-': 'a D-',
+  F: 'an F',
+  W: 'a W (withdrew)',
+  Other: 'some other grade, e.g. pass/fail or incomplete',
+} as const;
+
+export type GradeBucket = keyof typeof GRADE_BUCKETS;
+
+/** Output fields counting the students who received each grade, to spread into a distribution schema. */
+export const gradeCountsShape = mapValues(GRADE_BUCKETS, (grade) =>
+  z.number().int().describe(`Number of students who received ${grade}`),
+);
 
 export const linkSchema = z.object({
   text: z.string().describe('Link text'),

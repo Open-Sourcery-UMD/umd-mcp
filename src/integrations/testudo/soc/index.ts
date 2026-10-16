@@ -1,7 +1,16 @@
 import { format, isValid, parse } from 'date-fns';
 import { omit } from 'lodash-es';
 import { z } from 'zod';
-import { courseId, delivery, departmentCode, schoolDay, sectionId, term } from '../../../common.js';
+import {
+  courseId,
+  coursePrefix,
+  delivery,
+  departmentCode,
+  genEdCode,
+  schoolDay,
+  sectionId,
+  term,
+} from '../../../common.js';
 import type { Query } from '../../../lib/http.js';
 import { Integration, tool } from '../../base.js';
 import {
@@ -22,7 +31,6 @@ import {
   courseLevel,
   type CourseOffering,
   courseOfferingSchema,
-  coursePrefix,
   type CourseSuggestion,
   courseSuggestionSchema,
   creditComparison,
@@ -32,7 +40,6 @@ import {
   departmentSchema,
   type GenEdCategory,
   genEdCategorySchema,
-  genEdCode,
   type GenEdCourses,
   genEdCoursesSchema,
   type InstructorSuggestion,

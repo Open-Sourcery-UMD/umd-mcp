@@ -1,6 +1,6 @@
 import { uniq } from 'lodash-es';
 import { z } from 'zod';
-import { courseId, departmentCode, term } from '../../common.js';
+import { courseId, departmentCode, gradeCountsShape, term } from '../../common.js';
 
 export const PROFESSOR_TYPES = ['professor', 'ta'] as const;
 
@@ -87,9 +87,6 @@ export const professorSchema = z.object({
   reviews: z.array(reviewSchema).describe('Student reviews of this professor'),
 });
 
-const gradeCount = (grade: string) =>
-  z.number().int().describe(`Number of students in the section who received ${grade}`);
-
 export const gradesSchema = z.object({
   course: courseId,
   professor: z
@@ -102,21 +99,7 @@ export const gradesSchema = z.object({
   section: sectionNumber.describe(
     'Section number as PlanetTerp recorded it: "0101" through Spring 2022, "101" from Fall 2022',
   ),
-  'A+': gradeCount('an A+'),
-  A: gradeCount('an A'),
-  'A-': gradeCount('an A-'),
-  'B+': gradeCount('a B+'),
-  B: gradeCount('a B'),
-  'B-': gradeCount('a B-'),
-  'C+': gradeCount('a C+'),
-  C: gradeCount('a C'),
-  'C-': gradeCount('a C-'),
-  'D+': gradeCount('a D+'),
-  D: gradeCount('a D'),
-  'D-': gradeCount('a D-'),
-  F: gradeCount('an F'),
-  W: gradeCount('a W (withdrew)'),
-  Other: gradeCount('some other grade, e.g. pass/fail or incomplete'),
+  ...gradeCountsShape,
 });
 
 export const searchResultSchema = z.object({

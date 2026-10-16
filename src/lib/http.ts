@@ -2,7 +2,7 @@ import * as cheerio from 'cheerio';
 import makeFetchCookie from 'fetch-cookie';
 import { isString } from 'lodash-es';
 import { CookieJar } from 'tough-cookie';
-import { collapse, trimmed } from './text.js';
+import { collapse, numeric, trimmed } from './text.js';
 
 /** How long a request may take before it is abandoned, unless `init.signal` says otherwise. */
 const TIMEOUT_MS = 60_000;
@@ -133,6 +133,14 @@ export async function request(
     throw new HttpError(res.status, url.toString(), await res.text());
   }
   return res;
+}
+
+/**
+ * The total a PostgREST-style `Content-Range` header reports (`0-24/812`, `*\/0`); null when the
+ * response has none or the total is `*`. The `content-range` package wants a unit, so it won't do.
+ */
+export function contentRangeTotal(res: Response): number | null {
+  return numeric(res.headers.get('content-range')?.split('/')[1]);
 }
 
 /** Like `request`, but asks for JSON and returns the parsed body. */
