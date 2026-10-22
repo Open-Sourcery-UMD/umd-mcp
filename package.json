@@ -47,9 +47,9 @@
     "html-to-text": "^10.0.1",
     "lodash-es": "^4.18.1",
     "marked": "^18.0.14",
-    "p-memoize": "^8.0.0",
+    "p-memoize": "^9.0.0",
     "parse-link-header": "^2.0.0",
-    "playwright-core": "1.63.0",
+    "playwright-core": "1.64.1",
     "qs": "^6.16.0",
     "rss-parser": "^3.13.0",
     "split-string": "^6.1.0",
@@ -73,7 +73,7 @@
     "lint-staged": "^17.6.0",
     "prettier": "^3.9.9",
     "tsx": "^4.23.15",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "typescript-eslint": "^8.70.1",
     "vitest": "^5.0.2"
   }
