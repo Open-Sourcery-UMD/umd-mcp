@@ -1,7 +1,7 @@
 import { Integration, tool } from '../base.js';
 import { availabilityLibrary, availabilitySchema, hoursLibrary, hoursSchema } from './schemas.js';
 import type { Availability, Hours } from './schemas.js';
-import { type RawAvailability, toAvailability, toHours } from './mappers.js';
+import { type RawAvailability, RawHours, toAvailability, toHours } from './mappers.js';
 
 export class Libraries extends Integration {
   readonly name = 'libraries';
@@ -17,11 +17,7 @@ export class Libraries extends Integration {
     output: hoursSchema.shape,
   })
   async get_hours({ library }: { library: string }): Promise<Hours> {
-    const raw = await this.get<{
-      status: string;
-      hours_from?: string;
-      hours_to?: string;
-    }>(`${library}/hours/today`);
+    const raw = await this.get<RawHours>(`${library}/hours/today`);
 
     return toHours(raw);
   }
@@ -29,7 +25,7 @@ export class Libraries extends Integration {
   @tool({
     title: 'Get library space availability',
     description:
-      'Get today’s library space availability for a supported UMD Library Location. Supported libraries are McKeldin, STEM, MSPAL, and Art. No login needed.',
+      'Get today\'s library space availability for a supported UMD Library Location.',
     input: {
       library: availabilityLibrary,
     },
