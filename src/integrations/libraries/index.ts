@@ -10,7 +10,7 @@ export class Libraries extends Integration {
   @tool({
     title: 'Get library hours',
     description:
-      'Get today’s opening hours and current status for a supported UMD Library location. Supported libraries are McKeldin, STEM, Makerspace, MSPAL, and Art. No login needed.',
+      'Get today\'s opening hours and current status for a supported UMD Library location. Supported libraries are McKeldin, STEM, Makerspace, MSPAL, and Art. No login needed.',
     input: {
       library: hoursLibrary,
     },
