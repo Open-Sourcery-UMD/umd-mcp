@@ -237,6 +237,12 @@ and the rest work anonymously.
 | `jupiterp_get_grade_summary` | Grade distributions on Jupiterp summed across sections: per course, per course and term, per course and instructor, per instructor, or per instructor and term.          |
 | `jupiterp_list_grade_terms`  | Terms Jupiterp has grade data for, newest first, with section and course counts and the university-wide GPA.                                                             |
 
+### libraries
+
+| Tool                | Description                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| libraries_get_hours | Today’s opening hours and current status for a supported UMD Library location: McKeldin, STEM, Makerspace, MSPAL, or Art. No login needed. |
+
 ### maps
 
 | Tool                         | Description                                                                                                                                                  |
