@@ -1,7 +1,8 @@
 import { Integration, tool } from '../base.js';
 import { availabilityLibrary, availabilitySchema, hoursLibrary, hoursSchema } from './schemas.js';
 import type { Availability, Hours } from './schemas.js';
-import { type RawAvailability, RawHours, toAvailability, toHours } from './mappers.js';
+import { toAvailability, toHours } from './mappers.js';
+import { type RawAvailability, type RawHours } from './mappers.js';
 
 export class Libraries extends Integration {
   readonly name = 'libraries';
@@ -10,7 +11,7 @@ export class Libraries extends Integration {
   @tool({
     title: 'Get library hours',
     description:
-      'Get today\'s opening hours and current status for a supported UMD Library location. Supported libraries are McKeldin, STEM, Makerspace, MSPAL, and Art. No login needed.',
+      "Get today's opening hours and current status for a supported UMD Library location. Supported libraries are McKeldin, STEM, Makerspace, MSPAL, and Art. No login needed.",
     input: {
       library: hoursLibrary,
     },
@@ -24,8 +25,7 @@ export class Libraries extends Integration {
 
   @tool({
     title: 'Get library space availability',
-    description:
-      'Get today\'s library space availability for a supported UMD Library Location.',
+    description: "Get today's library space availability for a supported UMD Library Location.",
     input: {
       library: availabilityLibrary,
     },
