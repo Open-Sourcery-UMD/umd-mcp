@@ -94,11 +94,7 @@ function wrapPage(page: Page): BrowserPage {
       await page.goto(url);
     },
     async submitForm(action, fields) {
-      const from = page.url();
-      const navigated = page.waitForEvent(
-        'framenavigated',
-        (frame) => frame === page.mainFrame() && frame.url() !== from,
-      );
+      const navigated = page.waitForEvent('domcontentloaded');
       // Evaluated as a string so the DOM types are not needed in this Node-only codebase.
       await page.evaluate(`(() => {
         const form = document.createElement('form');
