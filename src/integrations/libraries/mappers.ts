@@ -27,21 +27,20 @@ export type RawAvailability = {
   total: number;
 };
 
-export function toAvailability(raw: RawAvailability): Availability {
+export function toAvailability({
+  overall_available,
+  total,
+  ...groups
+}: RawAvailability): Availability {
   return {
-    groups: Object.entries(raw)
-      .filter(
-        (entry): entry is [string, RawAvailabilityGroup] =>
-          entry[0] !== 'overall_available' && entry[0] !== 'total' && typeof entry[1] !== 'number',
-      )
-      .map(([key, group]) => ({
-        group_id: Number(key),
-        name: group.name,
-        available: Number(group.available),
-        total: Number(group.total),
-        next_available: group.next_available,
-      })),
-    overall_available: raw.overall_available,
-    total: raw.total,
+    groups: Object.entries(groups as Record<string, RawAvailabilityGroup>).map(([id, group]) => ({
+      group_id: Number(id),
+      name: group.name,
+      available: Number(group.available),
+      total: Number(group.total),
+      next_available: group.next_available ?? null,
+    })),
+    overall_available,
+    total,
   };
 }

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-export const hoursLibrary = z
+export const library = z
   .enum(['mckeldin', 'stem', 'makerspace', 'mspal', 'art'])
   .describe(
-    'Library identifiers supported by the UMD Libraries API: "mckeldin", "stem", "makerspace", "mspal", or "art"',
+    'McKeldin Library, STEM Library, Makerspace, Michelle Smith Performing Arts Library, or Art Library',
   );
 
 export const hoursSchema = z.object({
@@ -18,10 +18,10 @@ export const hoursSchema = z.object({
     .describe('Closing time for today; null when the library is closed or unavailable'),
 });
 
-export const availabilityLibrary = z
-  .enum(['mckeldin', 'stem', 'mspal', 'art'])
+export const availabilityLibrary = library
+  .exclude(['makerspace'])
   .describe(
-    'Library identifiers supported by the UMD Libraries API: "mckeldin", "stem", "mspal", or "art"',
+    'McKeldin Library, STEM Library, Michelle Smith Performing Arts Library, or Art Library',
   );
 
 export const availabilityGroupSchema = z.object({

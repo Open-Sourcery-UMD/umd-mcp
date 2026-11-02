@@ -239,9 +239,10 @@ and the rest work anonymously.
 
 ### libraries
 
-| Tool                | Description                                                                                                                                |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| libraries_get_hours | Today’s opening hours and current status for a supported UMD Library location: McKeldin, STEM, Makerspace, MSPAL, or Art. No login needed. |
+| Tool                       | Description                                                                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| libraries_get_hours        | Today’s opening hours and current status for a supported UMD Library location: McKeldin, STEM, Makerspace, MSPAL, or Art. No login needed. |
+| libraries_get_availability | Today’s library space availability for a supported UMD Library location: McKeldin, STEM, MSPAL, or Art. No login needed.                   |
 
 ### maps
 
