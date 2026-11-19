@@ -17,6 +17,7 @@ import { Maps } from './maps/index.js';
 import { Nutrition } from './nutrition/index.js';
 import { PlanetTerp } from './planetterp/index.js';
 import { RecWell } from './recwell/index.js';
+import { Reports } from './reports/index.js';
 import { Senate } from './senate/index.js';
 import { Shibboleth } from './shibboleth/index.js';
 import { TerpLink } from './terplink/index.js';
@@ -46,6 +47,7 @@ export function createIntegrations(): Integration[] {
     new Nutrition(),
     new PlanetTerp(),
     new RecWell(),
+    new Reports(),
     new Senate(),
     new TerpLink(),
     new ScheduleOfClasses(),
