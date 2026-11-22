@@ -284,6 +284,12 @@ and the rest work anonymously.
 | `recwell_get_group_fitness_schedule` | The weekly RecWell group fitness class schedule: class, location, instructor, start and end time and registration link, optionally for one weekday.            |
 | `recwell_list_club_sports`           | Every RecWell club sport with its website, contact email and donation page.                                                                                    |
 
+### reports
+
+| Tool                   | Description                                                                                                                                                                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `reports_list_reports` | Public data reports from the UMD Office of Institutional Research on reports.umd.edu (admissions, enrollments, degrees, graduation rates, employees, courses), each with a link to view it, plus every report category with its number of reports. |
+
 ### senate
 
 | Tool                                     | Description                                                                                                                                                                                                    |
