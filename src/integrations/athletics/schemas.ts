@@ -57,13 +57,6 @@ export const sportId = z
   .positive()
   .describe('Sport id from athletics_list_sports, e.g. 3 for Football');
 
-export const page = z
-  .number()
-  .int()
-  .min(1)
-  .default(1)
-  .describe('Page number, starting at 1 (default 1)');
-
 const link = (what: string) => z.string().nullable().describe(`${what}; null when none`);
 
 export const sportSchema = z.object({

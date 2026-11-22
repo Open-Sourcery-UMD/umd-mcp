@@ -1,4 +1,4 @@
-import { compact, isFinite as isFiniteNumber, isString, toNumber, trim } from 'lodash-es';
+import { compact, isFinite as isFiniteNumber, isString, toNumber, trim, unescape } from 'lodash-es';
 
 /** `value` trimmed; null when it is not a string or is blank. Numbers are stringified. */
 export function trimmed(value: unknown): string | null {
@@ -6,6 +6,12 @@ export function trimmed(value: unknown): string | null {
   if (!isString(value)) return null;
   const text = trim(value);
   return text === '' ? null : text;
+}
+
+/** Free text an API stores with HTML entities ("&amp;") but no markup, trimmed and decoded. */
+export function prose(value: string | null | undefined): string | null {
+  const text = trimmed(value);
+  return text === null ? null : unescape(text);
 }
 
 /** `value` with every run of whitespace (non-breaking spaces included) collapsed to one space. */

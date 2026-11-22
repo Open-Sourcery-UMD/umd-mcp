@@ -1,10 +1,10 @@
 import * as cheerio from 'cheerio';
 import { escapeRegExp, sortBy, startCase, unescape } from 'lodash-es';
 import { decode, decodeOrNull, type Link, member } from '../../common.js';
-import { isoDateFrom } from '../../lib/dates.js';
+import { isoDateFrom, isoDay } from '../../lib/dates.js';
 import { htmlToTextOrNull } from '../../lib/html.js';
 import { absoluteUrl, links } from '../../lib/scrape.js';
-import { collapse, joinWords, numeric, trimmed, yesNo } from '../../lib/text.js';
+import { collapse, joinWords, numeric, prose, trimmed, yesNo } from '../../lib/text.js';
 import {
   type ActiveBill,
   type Bill,
@@ -139,18 +139,6 @@ export type RawFile = {
 /** "MM/DD/YYYY" as the legislation API prints dates, to YYYY-MM-DD; null when blank or odd. */
 function usDate(value: string | null | undefined): string | null {
   return isoDateFrom(value, 'MM/dd/yyyy');
-}
-
-/** The date part of "YYYY-MM-DD" or an ISO timestamp; null when blank. */
-function isoDay(value: string | null | undefined): string | null {
-  const text = trimmed(value);
-  return text === null ? null : text.slice(0, 10);
-}
-
-/** Free text the legislation API stores with HTML entities ("&amp;"), trimmed and decoded. */
-function prose(value: string | null | undefined): string | null {
-  const text = trimmed(value);
-  return text === null ? null : unescape(text);
 }
 
 /** "2024, 2025" to [2024, 2025]. */

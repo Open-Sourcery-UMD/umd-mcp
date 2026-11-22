@@ -1,5 +1,4 @@
 import Database from 'better-sqlite3';
-import ExpiryMap from 'expiry-map';
 import {
   getFeedInfo,
   getRoutes,
@@ -11,8 +10,8 @@ import {
   importGtfs,
 } from 'gtfs';
 import { countBy, maxBy, toPairs } from 'lodash-es';
-import pMemoize from 'p-memoize';
 import { decode, decodeOrNull, weekdayOf } from '../../common.js';
+import { cached } from '../../lib/cache.js';
 import { isoDateFrom } from '../../lib/dates.js';
 import { matchesQuery, trimmed } from '../../lib/text.js';
 import {
@@ -27,9 +26,6 @@ import {
 } from './schemas.js';
 
 const GTFS_URL = 'https://feed.actionfigure.ai/university-of-maryland-shuttle-um.zip';
-
-/** How long an imported feed is reused before it is downloaded again. */
-const FEED_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /** Most shape points returned for one route; longer polylines are thinned evenly. */
 const MAX_SHAPE_POINTS = 500;
@@ -59,10 +55,11 @@ let current: Database.Database | null = null;
 
 /**
  * Imports the feed into a fresh in-memory database and, only once that has succeeded, makes
- * it the one queries read from. node-gtfs drops every table before it downloads, so importing
- * into the live database would leave it empty whenever the download failed.
+ * it the one queries read from; at most once a day. node-gtfs drops every table before it
+ * downloads, so importing into the live database would leave it empty whenever the download
+ * failed.
  */
-async function refresh(): Promise<void> {
+const refresh = cached(async (): Promise<void> => {
   const fresh = new Database(':memory:');
   try {
     await importGtfs({ agencies: [{ url: GTFS_URL }], db: fresh, logLevel: 'silent' });
@@ -72,12 +69,6 @@ async function refresh(): Promise<void> {
   }
   current?.close();
   current = fresh;
-}
-
-/** `refresh`, run once a day; a rejected run is not remembered, so the next call tries again. */
-const refreshDaily: () => Promise<void> = pMemoize(refresh, {
-  cache: new ExpiryMap(FEED_MAX_AGE_MS),
-  cacheKey: () => 'feed',
 });
 
 /**
@@ -86,7 +77,7 @@ const refreshDaily: () => Promise<void> = pMemoize(refresh, {
  */
 async function feed(): Promise<Database.Database> {
   try {
-    await refreshDaily();
+    await refresh();
   } catch (error) {
     if (current === null) {
       const reason = error instanceof Error ? error.message : String(error);

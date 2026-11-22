@@ -263,6 +263,14 @@ and the rest work anonymously.
 | `nutrition_get_menu`   | What a UMD dining hall is serving on a given day, by meal period and station, with allergens and dietary labels for each dish, from nutrition.umd.edu. |
 | `nutrition_get_recipe` | The nutrition label for a dish on a UMD dining hall menu: serving size, calories, nutrition facts with daily values, ingredients and allergens.        |
 
+### och
+
+| Tool                  | Description                                                                                                                                                                                        |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `och_list_areas`      | The campuses, neighborhoods and nearby cities the UMD Off-Campus Housing database files listings under.                                                                                            |
+| `och_search_listings` | Search the apartments, houses, rooms and sublets in the UMD Off-Campus Housing database by area, rent, bedrooms, distance to campus, move-in date and amenities.                                   |
+| `och_get_listing`     | Full details of one off-campus housing listing: address, rent, contact phone, description, floor plans with availability, fees, amenities, utilities, pet policy, scores and nearby rail stations. |
+
 ### planetterp
 
 | Tool                         | Description                                                                                                      |
@@ -472,7 +480,7 @@ src/
   server.ts            # createServer(): registers every integration
   common.ts            # shared zod schemas and small helpers (terms, course ids, weekdays, enums)
   lib/                 # HTTP helper, sign-in hub (auth.ts), per-service Session, browser driver,
-                       # text/HTML/scraping helpers
+                       # cache and text/HTML/scraping helpers
   integrations/
     base.ts            # Integration base class, @tool decorator, result helpers
     index.ts           # createIntegrations(): instantiate integrations here

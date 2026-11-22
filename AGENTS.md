@@ -139,7 +139,7 @@ patterns; a one-off phrasing is a review comment.
   and `decode()` / `decodeOrNull()` / `member()` from `src/common.ts` in the mapper, so an
   unexpected upstream value surfaces as a tool error instead of passing through silently.
 - Reuse `src/common.ts` schemas in inputs **and** outputs: `term`, `courseId`, `sectionId`,
-  `departmentCode`, `weekday`, `isoDate`, `pagination()`, `limit()`, `linkSchema`,
+  `departmentCode`, `weekday`, `isoDate`, `pagination()`, `limit()`, `page`, `linkSchema`,
   `tableSchema`, `postalAddressSchema`, `today()`, `CAMPUS_TIME_ZONE`.
 - No `.transform()` in schemas; mappers and parsers do conversion.
 - Output field names are snake_case and describe the domain, not the upstream's field names.
@@ -157,12 +157,15 @@ patterns; a one-off phrasing is a review comment.
   `expiry-map`, `split-string`. Add a direct dependency rather than work around a missing or
   nested one.
 - **Use the shared helpers; never re-implement them locally.**
-  - `src/lib/text.ts`: `trimmed`, `collapse`, `lines`, `joinWords`, `numeric`, `list`.
+  - `src/lib/text.ts`: `trimmed`, `prose`, `collapse`, `lines`, `joinWords`, `numeric`,
+    `list`.
   - `src/lib/html.ts`: `htmlToText`, `htmlToTextOrNull`, `preformattedText`.
   - `src/lib/scrape.ts`: cheerio `text`, `texts`, `textOrNull`, `absoluteUrl`, `links`, `table`,
     `tables`.
   - `src/lib/dates.ts`: `isoDateFrom`, `isoDateTimeFrom` (printed dates to ISO via date-fns
-    patterns).
+    patterns), `isoDay` (the date part of a timestamp).
+  - `src/lib/cache.ts`: `cached` (remembers public reference data for a day; session-tied
+    values use `perSession()` instead).
   - `src/lib/http.ts`, `session.ts`, `errors.ts`: requests, `cookieFetcher`, `perSession`,
     `HttpError`, `AuthRequiredError`.
 - **Anything a second integration could need belongs in `src/lib` or `src/common.ts`**, as a
