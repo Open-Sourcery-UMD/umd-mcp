@@ -15,6 +15,7 @@ import { Jupiterp } from './jupiterp/index.js';
 import { Libraries } from './libraries/index.js';
 import { Maps } from './maps/index.js';
 import { Nutrition } from './nutrition/index.js';
+import { OffCampusHousing } from './och/index.js';
 import { PlanetTerp } from './planetterp/index.js';
 import { RecWell } from './recwell/index.js';
 import { Reports } from './reports/index.js';
@@ -45,6 +46,7 @@ export function createIntegrations(): Integration[] {
     new Libraries(),
     new Maps(),
     new Nutrition(),
+    new OffCampusHousing(),
     new PlanetTerp(),
     new RecWell(),
     new Reports(),

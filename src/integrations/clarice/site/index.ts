@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { page } from '../../../common.js';
 import { Integration, tool } from '../../base.js';
 import { parseEvent, parseEventList } from './parsers.js';
 import {
@@ -42,7 +43,7 @@ export class Clarice extends Integration {
       genre: genre.optional().describe('Only events in this genre'),
       category: category.optional().describe('Only events of this kind'),
       presenter: presenter.optional().describe('Only events by this presenter'),
-      page: z.number().int().min(1).default(1).describe('Page number, starting at 1 (default 1)'),
+      page,
     },
     output: eventListSchema.shape,
   })

@@ -156,6 +156,14 @@ export function limit(defaultLimit: number, max: number) {
     .describe(`Maximum number of records to return, 1-${max} (default ${defaultLimit})`);
 }
 
+/** A `page` input field for a tool whose upstream pages its results at a size of its own. */
+export const page = z
+  .number()
+  .int()
+  .min(1)
+  .default(1)
+  .describe('Page number, starting at 1 (default 1)');
+
 /**
  * The value an upstream code maps to in a `CODE: 'value'` table. Throws when the code is not
  * in the table, so an unexpected upstream value surfaces as a tool error instead of bad data.

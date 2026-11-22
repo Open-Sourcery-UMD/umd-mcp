@@ -12,6 +12,11 @@ export function isoDateFrom(value: unknown, pattern: string): string | null {
   return isValid(date) ? format(date, 'yyyy-MM-dd') : null;
 }
 
+/** The date part of "YYYY-MM-DD" or an ISO timestamp; null when blank. */
+export function isoDay(value: string | null | undefined): string | null {
+  return trimmed(value)?.slice(0, 10) ?? null;
+}
+
 /** Like `isoDateFrom`, but keeps the time of day: YYYY-MM-DDTHH:mm:ss in local time. */
 export function isoDateTimeFrom(value: unknown, pattern: string): string | null {
   const printed = trimmed(value);

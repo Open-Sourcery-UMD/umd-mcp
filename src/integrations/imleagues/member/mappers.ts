@@ -1,5 +1,5 @@
 import { decode, member } from '../../../common.js';
-import { isoDateTimeFrom } from '../../../lib/dates.js';
+import { isoDateTimeFrom, isoDay } from '../../../lib/dates.js';
 import { htmlToTextOrNull } from '../../../lib/html.js';
 import { numeric, trimmed } from '../../../lib/text.js';
 import {
@@ -122,7 +122,7 @@ export function toLeague(raw: RawLeague): League {
     name: raw.name,
     sport: raw.sportName,
     coed: raw.isCoedLeague,
-    regular_season_end: trimmed(raw.regularSeasonEnd)?.slice(0, 10) ?? null,
+    regular_season_end: isoDay(raw.regularSeasonEnd),
     waitlist_opens: raw.allowWaitList ? trimmed(raw.watilistRegStart) : null,
     description: htmlToTextOrNull(raw.description),
     divisions: raw.divisionTeams.map((division) => {
