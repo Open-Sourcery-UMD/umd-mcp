@@ -271,6 +271,15 @@ and the rest work anonymously.
 | `och_search_listings` | Search the apartments, houses, rooms and sublets in the UMD Off-Campus Housing database by area, rent, bedrooms, distance to campus, move-in date and amenities.                                   |
 | `och_get_listing`     | Full details of one off-campus housing listing: address, rent, contact phone, description, floor plans with availability, fees, amenities, utilities, pet policy, scores and nearby rail stations. |
 
+### opensourcery
+
+| Tool                             | Description                                                                                                                                                                                                            |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `opensourcery_get_club_info`     | Public contact and links for Open Sourcery, UMD's open-source development club (website, GitHub org, Discord, email, Instagram, LinkedIn). No login needed.                                                            |
+| `opensourcery_list_events`       | Upcoming club events from the Open Sourcery Google Calendar published on opensourcery.umd.edu (hack sessions and similar), with title, time, location and calendar link. No login needed.                              |
+| `opensourcery_list_repositories` | Names and GitHub URLs of public repositories in the Open-Sourcery-UMD GitHub organization, via opensourcery.umd.edu. No login needed.                                                                                  |
+| `opensourcery_get_project`       | Overview of one public Open-Sourcery-UMD GitHub repository via opensourcery.umd.edu: description, stars, language, recent commits and pull requests. Pass a name from opensourcery_list_repositories. No login needed. |
+
 ### planetterp
 
 | Tool                         | Description                                                                                                      |
