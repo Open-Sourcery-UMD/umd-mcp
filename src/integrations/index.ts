@@ -16,6 +16,7 @@ import { Libraries } from './libraries/index.js';
 import { Maps } from './maps/index.js';
 import { Nutrition } from './nutrition/index.js';
 import { OffCampusHousing } from './och/index.js';
+import { OpenSourcery } from './opensourcery/index.js';
 import { PlanetTerp } from './planetterp/index.js';
 import { RecWell } from './recwell/index.js';
 import { Reports } from './reports/index.js';
@@ -47,6 +48,7 @@ export function createIntegrations(): Integration[] {
     new Maps(),
     new Nutrition(),
     new OffCampusHousing(),
+    new OpenSourcery(),
     new PlanetTerp(),
     new RecWell(),
     new Reports(),
